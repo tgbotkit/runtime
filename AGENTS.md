@@ -8,7 +8,7 @@
 -   **Event-Driven Architecture:** Built around a pluggable `EventEmitter` system. Components emit events, and handlers subscribe to them.
 -   **Modular Components:** Core functionalities like update polling, command parsing, and message classification are implemented as distinct, reusable components.
 -   **Flexible Configuration:** Uses the functional options pattern for type-safe and flexible configuration of the bot and its components.
--   **Pluggable Storage & Logging:** Interfaces for session storage and logging allow for easy swapping of implementations.
+-   **Pluggable Logging:** Interfaces for logging allow for easy swapping of implementations (e.g., `slog`, `zerolog`, or no-op).
 
 ## Architecture
 
@@ -23,7 +23,7 @@ The lifecycle of the bot is as follows:
 
 2.  **Execution (`Run`):**
     -   The `Run` method starts the bot's main processing loop.
-    -   It establishes an **Update Source** to receive updates from Telegram. By default, it uses a long-polling mechanism (`updatepoller`), but this can be replaced with another source, like a `webhook`.
+    -   It establishes an **Update Source** to receive updates from Telegram. By default, it uses a long-polling mechanism (`updatepoller`) backed by an in-memory offset store, but this can be replaced with another source, like a `webhook`.
     -   The `receiveLoop` continuously fetches updates from the source.
 
 3.  **Event-Driven Processing:**
@@ -39,16 +39,17 @@ This architecture decouples the source of updates from the logic that processes 
 
 -   `/` - Root directory containing the main `Bot` logic and entry points.
     -   `bot.go`: Main bot initialization and run loop.
+    -   `interfaces.go`: Core interfaces like `UpdateSource`.
     -   `options.gen.go`: Generated configuration options.
 -   `internal/` - Internal packages not intended for external use.
     -   `classifier/`: Analyzes updates to trigger more specific events.
     -   `commandparser/`: Parses text for bot commands.
 -   `updatepoller/`: Implements long-polling mechanism for updates.
--   `eventemitter/` - The event bus implementation (`Sync` emitter provided). Defines `Listener` and `EventEmitter` interfaces.
+    -   `offsetstore/`: Interfaces and implementations for storing update offsets.
+-   `eventemitter/` - The event bus implementation (`Sync` emitter provided). Defines `Listener` and `EventEmitter` interfaces and generic typed helpers.
 -   `events/` - Definitions of event topics (strings) and payload structures.
 -   `examples/` - Example bot implementations (`pingpong`, `webhook`).
 -   `logger/` - Logging abstractions and adapters (`zerolog`, `slog`, `noop`).
--   `sessionstore/` - Interfaces for maintaining user/chat sessions.
 -   `webhook/` - Webhook handling logic.
 
 ## Development
