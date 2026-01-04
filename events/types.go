@@ -13,7 +13,9 @@ type BotContext interface {
 	Logger() logger.Logger
 }
 
-type RuntimeEvent struct {
+// BotEvent is a generic event that includes the bot context.
+// It is used for simple lifecycle events like OnBeforeStart.
+type BotEvent struct {
 	Bot BotContext
 }
 

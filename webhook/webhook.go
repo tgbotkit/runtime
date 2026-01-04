@@ -8,6 +8,11 @@ import (
 	"github.com/tgbotkit/runtime"
 )
 
+const (
+	// HeaderTelegramBotAPISecretToken is the header used by Telegram to send the secret token.
+	HeaderTelegramBotAPISecretToken = "X-Telegram-Bot-Api-Secret-Token"
+)
+
 var _ runtime.UpdateSource = (*Webhook)(nil)
 
 // Webhook implements http.Handler to receive incoming updates via an outgoing webhook.
@@ -33,7 +38,16 @@ func (h *Webhook) UpdateChan() <-chan client.Update {
 }
 
 // ServeHTTP implements http.Handler interface.
+// It validates the request, decodes the update, and sends it to the updates channel.
 func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// If a secret token is configured, validate the header.
+	if len(h.opts.Token) > 0 {
+		if r.Header.Get(HeaderTelegramBotAPISecretToken) != h.opts.Token {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+	}
+
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

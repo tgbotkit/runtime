@@ -20,11 +20,11 @@ func New() (*CommandParser, error) {
 }
 
 func (h *CommandParser) Subscribe(ee eventemitter.EventEmitter) {
-	eventemitter.On[events.RuntimeEvent](ee, events.OnBeforeStart, h.onBeforeStart)
+	eventemitter.On[events.BotEvent](ee, events.OnBeforeStart, h.onBeforeStart)
 	eventemitter.On[events.MessageEvent](ee, events.OnTextMessageReceived, h.onTextMessageReceived)
 }
 
-func (h *CommandParser) onBeforeStart(ctx context.Context, event *events.RuntimeEvent) error {
+func (h *CommandParser) onBeforeStart(ctx context.Context, event *events.BotEvent) error {
 	botName, err := getBotName(ctx, event.Bot.Client())
 	if err != nil {
 		return fmt.Errorf("unable to load bot name: %w", err)
@@ -60,7 +60,7 @@ func (h *CommandParser) onTextMessageReceived(ctx context.Context, event *events
 		args := sliceTextFrom(text, entity.Offset+entity.Length)
 		args = strings.TrimLeft(args, " ")
 
-		event.Bot.EventEmitter().Emit(ctx, events.OnCommandReceived, &events.CommandEvent{Bot: event.Bot, Message: event.Message, Command: commandText, Args: args})
+		event.Bot.EventEmitter().Emit(ctx, events.OnCommand, &events.CommandEvent{Bot: event.Bot, Message: event.Message, Command: commandText, Args: args})
 		return eventemitter.ErrBreak // stop propagation
 	}
 	return nil

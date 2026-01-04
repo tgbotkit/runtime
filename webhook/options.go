@@ -4,4 +4,5 @@ package webhook
 
 // Options is the options for the Webhook handler.
 type Options struct {
+	Token string `option:"optional"`
 }

@@ -71,6 +71,8 @@ func New(opts Options) (*Bot, error) {
 // Run starts the bot's update processing loop and blocks until the context is canceled.
 // It initializes a default update poller if no update source is configured.
 func (b *Bot) Run(ctx context.Context) error {
+	b.opts.eventEmitter.Emit(ctx, events.OnBeforeStart, &events.BotEvent{Bot: b})
+
 	// init default update source if not provided
 	if b.opts.updateSource == nil {
 		poller, err := updatepoller.NewPoller(updatepoller.NewOptions(
@@ -137,5 +139,5 @@ type HandlerFunc func(eventemitter.EventEmitter)
 
 // Subscribe calls f(ee), allowing HandlerFunc to implement the Handler interface.
 func (f HandlerFunc) Subscribe(ee eventemitter.EventEmitter) {
-	f(ee)
+f(ee)
 }

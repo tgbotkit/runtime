@@ -30,10 +30,6 @@ func NewOptions(
 	return o
 }
 
-func WithBotName(opt string) OptOptionsSetter {
-	return func(o *Options) { o.botName = opt }
-}
-
 // client is the Telegram API client.
 func WithClient(opt client.ClientWithResponsesInterface) OptOptionsSetter {
 	return func(o *Options) { o.client = opt }

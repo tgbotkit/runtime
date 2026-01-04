@@ -17,6 +17,10 @@ func NewOptions(
 	return o
 }
 
+func WithToken(opt string) OptOptionsSetter {
+	return func(o *Options) { o.Token = opt }
+}
+
 func (o *Options) Validate() error {
 	return nil
 }
