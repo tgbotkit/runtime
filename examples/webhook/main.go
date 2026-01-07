@@ -34,7 +34,7 @@ func main() {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
-	bot.Handlers().OnMessageWithType(func(ctx context.Context, event *events.MessageEvent) error {
+	bot.Handlers().OnMessageType(messagetype.Text, func(ctx context.Context, event *events.MessageEvent) error {
 		if event.Message.Text != nil && *event.Message.Text == "ping" {
 			_, _ = bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
 				ChatId: event.Message.Chat.Id,
@@ -42,7 +42,7 @@ func main() {
 			})
 		}
 		return nil
-	}, messagetype.Text)
+	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

@@ -66,7 +66,7 @@ func TestRegistry(t *testing.T) {
 		assert.Nil(t, payload, "payload should be nil after unsubscribe")
 	})
 
-	t.Run("OnMessageWithType", func(t *testing.T) {
+	t.Run("OnMessageType", func(t *testing.T) {
 		var called bool
 		var payload *events.MessageEvent
 		handler := func(ctx context.Context, event *events.MessageEvent) error {
@@ -75,7 +75,7 @@ func TestRegistry(t *testing.T) {
 			return nil
 		}
 
-		unsub := reg.OnMessageWithType(handler, messagetype.Text)
+		unsub := reg.OnMessageType(messagetype.Text, handler)
 
 		// Should not be called for Photo
 		expectedPayloadPhoto := &events.MessageEvent{Type: messagetype.Photo}
