@@ -2,16 +2,19 @@ package handlers
 
 import (
 	"context"
+	"slices"
 
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/events"
 	"github.com/tgbotkit/runtime/logger"
+	"github.com/tgbotkit/runtime/messagetype"
 )
 
 // HandlerRegistry defines the interface for managing event subscriptions.
 type HandlerRegistry interface {
 	OnUpdate(handler UpdateHandler) eventemitter.UnsubscribeFunc
 	OnMessage(handler MessageHandler) eventemitter.UnsubscribeFunc
+	OnMessageWithType(handler MessageHandler, types ...messagetype.MessageType) eventemitter.UnsubscribeFunc
 	OnCommand(handler CommandHandler) eventemitter.UnsubscribeFunc
 }
 
@@ -41,6 +44,18 @@ func (r *Registry) OnUpdate(handler UpdateHandler) eventemitter.UnsubscribeFunc 
 func (r *Registry) OnMessage(handler MessageHandler) eventemitter.UnsubscribeFunc {
 	r.l.Debug("adding OnMessage handler: %T", handler)
 	return eventemitter.On(r.em, events.OnMessage, func(ctx context.Context, event *events.MessageEvent) error {
+		return handler(ctx, event)
+	})
+}
+
+// OnMessageWithType registers a handler for the OnMessageReceived event with specific message types.
+func (r *Registry) OnMessageWithType(handler MessageHandler, types ...messagetype.MessageType) eventemitter.UnsubscribeFunc {
+	r.l.Debug("adding OnMessageWithType handler: %T", handler)
+	return eventemitter.On(r.em, events.OnMessage, func(ctx context.Context, event *events.MessageEvent) error {
+		if len(types) > 0 && !slices.Contains(types, event.Type) {
+			return nil
+		}
+
 		return handler(ctx, event)
 	})
 }

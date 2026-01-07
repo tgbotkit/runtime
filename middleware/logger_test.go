@@ -11,7 +11,6 @@ import (
 type mockLogger struct {
 	debugfCalled bool
 	errorfCalled bool
-	lastMsg      string
 }
 
 func (m *mockLogger) Errorf(format string, args ...interface{}) { m.errorfCalled = true }

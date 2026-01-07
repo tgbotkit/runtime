@@ -8,13 +8,15 @@ import (
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/events"
 	"github.com/tgbotkit/runtime/handlers"
+	"github.com/tgbotkit/runtime/logger"
+	"github.com/tgbotkit/runtime/messagetype"
 )
 
 func TestRegistry(t *testing.T) {
 	ee, err := eventemitter.NewSync(eventemitter.NewOptions())
 	assert.NoError(t, err)
 
-	reg := handlers.NewRegistry(ee)
+	reg := handlers.NewRegistry(ee, logger.NewNop())
 
 	t.Run("OnUpdate", func(t *testing.T) {
 		var called bool
@@ -60,6 +62,37 @@ func TestRegistry(t *testing.T) {
 		payload = nil
 		unsub()
 		ee.Emit(context.Background(), events.OnMessage, expectedPayload)
+		assert.False(t, called, "handler should not be called after unsubscribe")
+		assert.Nil(t, payload, "payload should be nil after unsubscribe")
+	})
+
+	t.Run("OnMessageWithType", func(t *testing.T) {
+		var called bool
+		var payload *events.MessageEvent
+		handler := func(ctx context.Context, event *events.MessageEvent) error {
+			called = true
+			payload = event
+			return nil
+		}
+
+		unsub := reg.OnMessageWithType(handler, messagetype.Text)
+
+		// Should not be called for Photo
+		expectedPayloadPhoto := &events.MessageEvent{Type: messagetype.Photo}
+		ee.Emit(context.Background(), events.OnMessage, expectedPayloadPhoto)
+		assert.False(t, called, "handler should not be called for Photo")
+
+		// Should be called for Text
+		expectedPayloadText := &events.MessageEvent{Type: messagetype.Text}
+		ee.Emit(context.Background(), events.OnMessage, expectedPayloadText)
+		assert.True(t, called, "handler should be called for Text")
+		assert.Same(t, expectedPayloadText, payload, "payload should match")
+
+		// Test unsubscribe
+		called = false
+		payload = nil
+		unsub()
+		ee.Emit(context.Background(), events.OnMessage, expectedPayloadText)
 		assert.False(t, called, "handler should not be called after unsubscribe")
 		assert.Nil(t, payload, "payload should be nil after unsubscribe")
 	})

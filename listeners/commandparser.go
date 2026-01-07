@@ -51,7 +51,6 @@ func parseCommand(ctx context.Context, emitter eventemitter.EventEmitter, event 
 		args = strings.TrimLeft(args, " ")
 
 		emitter.Emit(ctx, events.OnCommand, &events.CommandEvent{
-			Bot:     event.Bot,
 			Message: event.Message,
 			Command: commandText,
 			Args:    args,

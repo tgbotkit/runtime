@@ -1,0 +1,24 @@
+version: '3'
+
+tasks:
+  lint:
+    desc: Run linters
+    cmds:
+      - go tool golangci-lint run ./...
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v ./...
+
+  generate:
+    desc: Run code generation
+    cmds:
+      - go generate ./...
+
+  coverage:
+    desc: Calculate code coverage
+    cmds:
+      - go test -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out
+

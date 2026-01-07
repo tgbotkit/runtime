@@ -11,7 +11,7 @@ import (
 	"github.com/tgbotkit/runtime/logger"
 )
 
-// Poller is a component that polls the Telegram API for updates.
+// Poller polls the Telegram API for updates.
 type Poller struct {
 	opts   Options
 	log    logger.Logger
@@ -98,9 +98,8 @@ func (p *Poller) poll(ctx context.Context) {
 		return
 	}
 
-	offsetVal := int(offset)
 	resp, err := p.opts.client.GetUpdatesWithResponse(ctx, client.GetUpdatesJSONRequestBody{
-		Offset: &offsetVal,
+		Offset: &offset,
 	})
 	if err != nil || resp.StatusCode() != http.StatusOK {
 		if err != nil {

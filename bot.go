@@ -147,7 +147,7 @@ func (b *Bot) receiveLoop(ctx context.Context) error {
 				return nil
 			}
 			zerolog.Ctx(ctx).Debug().Interface("update", update).Msg("got update")
-			b.opts.eventEmitter.Emit(ctx, events.OnUpdate, &events.UpdateEvent{Bot: b, Update: &update})
+			b.opts.eventEmitter.Emit(ctx, events.OnUpdate, &events.UpdateEvent{Update: &update})
 		}
 	}
 }

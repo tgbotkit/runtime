@@ -27,7 +27,6 @@ func classifyUpdate(ctx context.Context, emitter eventemitter.EventEmitter, even
 	if update.Message != nil {
 		msgType := getMessageType(update.Message)
 		messageEvent := &events.MessageEvent{
-			Bot:     event.Bot,
 			Message: update.Message,
 			Type:    msgType,
 		}

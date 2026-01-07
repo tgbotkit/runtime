@@ -12,7 +12,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime"
-	"github.com/tgbotkit/runtime/botcontext"
 	"github.com/tgbotkit/runtime/events"
 	"github.com/tgbotkit/runtime/webhook"
 )
@@ -40,8 +39,6 @@ func main() {
 			return nil
 		}
 
-		b := botcontext.FromContext(ctx)
-
 		text := fmt.Sprintf("You sent the command: /%s\n", event.Command)
 		if event.Args != "" {
 			text += fmt.Sprintf("With arguments: %s", event.Args)
@@ -49,7 +46,7 @@ func main() {
 			text += "With no arguments."
 		}
 
-		_, _ = b.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
+		_, _ = bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
 			ChatId: event.Message.Chat.Id,
 			Text:   text,
 		})

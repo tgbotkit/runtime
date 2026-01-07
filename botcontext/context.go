@@ -16,7 +16,9 @@ type BotContext interface {
 	Logger() logger.Logger
 }
 
-var botContextKey struct{}
+type contextKey struct{}
+
+var botContextKey contextKey
 
 // WithBotContext returns a new context with the BotContext embedded.
 func WithBotContext(ctx context.Context, bot BotContext) context.Context {

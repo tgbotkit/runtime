@@ -10,8 +10,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime"
-	"github.com/tgbotkit/runtime/botcontext"
 	"github.com/tgbotkit/runtime/events"
+	"github.com/tgbotkit/runtime/messagetype"
 )
 
 func main() {
@@ -27,16 +27,15 @@ func main() {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
-	bot.Handlers().OnMessage(func(ctx context.Context, event *events.MessageEvent) error {
-		b := botcontext.FromContext(ctx)
+	bot.Handlers().OnMessageWithType(func(ctx context.Context, event *events.MessageEvent) error {
 		if event.Message.Text != nil && *event.Message.Text == "ping" {
-			_, _ = b.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
+			_, _ = bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
 				ChatId: event.Message.Chat.Id,
 				Text:   "pong",
 			})
 		}
 		return nil
-	})
+	}, messagetype.Text)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
