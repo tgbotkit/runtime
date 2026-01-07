@@ -1,9 +1,12 @@
 package webhook
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"github.com/rs/zerolog"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime"
 )
@@ -37,12 +40,37 @@ func (h *Webhook) UpdateChan() <-chan client.Update {
 	return h.updates
 }
 
+// SetWebhook sets the outgoing webhook for the bot.
+func (h *Webhook) SetWebhook(ctx context.Context) error {
+	if h.opts.client == nil || h.opts.url == "" {
+		return nil
+	}
+
+	params := client.SetWebhookJSONRequestBody{
+		Url: h.opts.url,
+	}
+	if h.opts.token != "" {
+		params.SecretToken = &h.opts.token
+	}
+
+	resp, err := h.opts.client.SetWebhookWithResponse(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to set webhook: %w", err)
+	}
+
+	if resp.JSON200 == nil || !bool(resp.JSON200.Ok) {
+		return fmt.Errorf("failed to set webhook: unexpected response: %s", resp.Status())
+	}
+
+	return nil
+}
+
 // ServeHTTP implements http.Handler interface.
 // It validates the request, decodes the update, and sends it to the updates channel.
 func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// If a secret token is configured, validate the header.
-	if len(h.opts.Token) > 0 {
-		if r.Header.Get(HeaderTelegramBotAPISecretToken) != h.opts.Token {
+	if len(h.opts.token) > 0 {
+		if r.Header.Get(HeaderTelegramBotAPISecretToken) != h.opts.token {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -58,6 +86,9 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	l := zerolog.Ctx(r.Context())
+	l.Debug().Interface("update", update).Msg("got update")
 
 	select {
 	case h.updates <- update:

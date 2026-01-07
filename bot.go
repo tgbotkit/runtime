@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime/botcontext"
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/events"
 	"github.com/tgbotkit/runtime/handlers"
+	"github.com/tgbotkit/runtime/listeners"
 	"github.com/tgbotkit/runtime/logger"
 	"github.com/tgbotkit/runtime/middleware"
 	"github.com/tgbotkit/runtime/updatepoller"
@@ -62,13 +64,15 @@ func New(opts Options) (*Bot, error) {
 	bot := &Bot{
 		opts: opts,
 	}
-	bot.registry = handlers.NewRegistry(bot.opts.eventEmitter)
+	bot.registry = handlers.NewRegistry(opts.eventEmitter, opts.logger)
 
 	// Register internal middlewares
-	opts.eventEmitter.Use(events.OnUpdate, middleware.Recoverer(bot.opts.logger))
-	opts.eventEmitter.Use(events.OnUpdate, middleware.ContextInjector(bot))
-	opts.eventEmitter.Use(events.OnUpdate, middleware.Classifier())
-	opts.eventEmitter.Use(events.OnMessage, middleware.CommandParser(opts.eventEmitter, botName))
+	opts.eventEmitter.Use("*", middleware.ContextInjector(bot))
+	opts.eventEmitter.Use("*", middleware.Logger(bot.opts.logger))
+	opts.eventEmitter.Use("*", middleware.Recoverer(bot.opts.logger))
+
+	opts.eventEmitter.AddListener(events.OnUpdate, listeners.Classifier(opts.eventEmitter))
+	opts.eventEmitter.AddListener(events.OnMessage, listeners.CommandParser(opts.eventEmitter, botName))
 
 	return bot, nil
 }
@@ -132,6 +136,7 @@ func loadBotName(api client.ClientWithResponsesInterface) (string, error) {
 // and emits them to the event emitter.
 func (b *Bot) receiveLoop(ctx context.Context) error {
 	ch := b.opts.updateSource.UpdateChan()
+	b.Logger().Info("receive loop started")
 	for {
 		select {
 		case <-ctx.Done():
@@ -141,6 +146,7 @@ func (b *Bot) receiveLoop(ctx context.Context) error {
 				// Channel closed, graceful shutdown.
 				return nil
 			}
+			zerolog.Ctx(ctx).Debug().Interface("update", update).Msg("got update")
 			b.opts.eventEmitter.Emit(ctx, events.OnUpdate, &events.UpdateEvent{Bot: b, Update: &update})
 		}
 	}

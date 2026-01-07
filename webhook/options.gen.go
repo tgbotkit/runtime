@@ -2,6 +2,10 @@
 
 package webhook
 
+import (
+	"github.com/tgbotkit/client"
+)
+
 type OptOptionsSetter func(o *Options)
 
 func NewOptions(
@@ -18,7 +22,15 @@ func NewOptions(
 }
 
 func WithToken(opt string) OptOptionsSetter {
-	return func(o *Options) { o.Token = opt }
+	return func(o *Options) { o.token = opt }
+}
+
+func WithUrl(opt string) OptOptionsSetter {
+	return func(o *Options) { o.url = opt }
+}
+
+func WithClient(opt client.ClientWithResponsesInterface) OptOptionsSetter {
+	return func(o *Options) { o.client = opt }
 }
 
 func (o *Options) Validate() error {

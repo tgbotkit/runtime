@@ -1,4 +1,4 @@
-package middleware
+package listeners
 
 import (
 	"context"
@@ -9,25 +9,19 @@ import (
 	"github.com/tgbotkit/runtime/messagetype"
 )
 
-// Classifier returns a middleware that classifies incoming updates and emits specific events.
-// It listens for UpdateEvent and then emits more granular events like MessageEvent,
-// CallbackQueryEvent, etc. It also classifies messages by type.
-func Classifier() eventemitter.Middleware {
-	return eventemitter.MiddlewareFunc(func(next eventemitter.Listener) eventemitter.Listener {
-		return eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
-			if event, ok := payload.(*events.UpdateEvent); ok {
-				if event != nil && event.Update != nil {
-					classifyUpdate(ctx, event)
-				}
+func Classifier(emitter eventemitter.EventEmitter) eventemitter.Listener {
+	return eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		if event, ok := payload.(*events.UpdateEvent); ok {
+			if event != nil && event.Update != nil {
+				classifyUpdate(ctx, emitter, event)
 			}
-			return next.Handle(ctx, payload)
-		})
+		}
+		return nil
 	})
 }
 
 // classifyUpdate inspects the update and emits corresponding events.
-func classifyUpdate(ctx context.Context, event *events.UpdateEvent) {
-	ee := event.Bot.EventEmitter()
+func classifyUpdate(ctx context.Context, emitter eventemitter.EventEmitter, event *events.UpdateEvent) {
 	update := event.Update
 
 	if update.Message != nil {
@@ -37,7 +31,7 @@ func classifyUpdate(ctx context.Context, event *events.UpdateEvent) {
 			Message: update.Message,
 			Type:    msgType,
 		}
-		ee.Emit(ctx, events.OnMessage, messageEvent)
+		emitter.Emit(ctx, events.OnMessage, messageEvent)
 	}
 }
 

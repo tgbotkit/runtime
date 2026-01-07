@@ -1,4 +1,4 @@
-package middleware
+package listeners
 
 import (
 	"context"
@@ -9,26 +9,19 @@ import (
 	"github.com/tgbotkit/runtime/messagetype"
 )
 
-// CommandParser returns a middleware that parses bot commands from text messages.
-// It listens for MessageEvent and, if the message type is text and a command is found,
-// emits a CommandEvent using the provided emitter.
-func CommandParser(emitter eventemitter.EventEmitter, botName string) eventemitter.Middleware {
-	return eventemitter.MiddlewareFunc(func(next eventemitter.Listener) eventemitter.Listener {
-		return eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
-			// We only care about MessageEvent with text.
-			if event, ok := payload.(*events.MessageEvent); ok && event.Type == messagetype.Text {
-				if err := parseCommand(ctx, emitter, event, botName); err != nil {
-					// Stop propagation if a command was handled.
-					if err == eventemitter.ErrBreak {
-						return nil // Don't propagate further, but don't treat as an error.
-					}
-					return err
+func CommandParser(emitter eventemitter.EventEmitter, botName string) eventemitter.Listener {
+	return eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		// We only care about MessageEvent with text.
+		if event, ok := payload.(*events.MessageEvent); ok && event.Type == messagetype.Text {
+			if err := parseCommand(ctx, emitter, event, botName); err != nil {
+				// Stop propagation if a command was handled.
+				if err == eventemitter.ErrBreak {
+					return nil // Don't propagate further, but don't treat as an error.
 				}
+				return err
 			}
-
-			// Always call the next handler to allow chaining.
-			return next.Handle(ctx, payload)
-		})
+		}
+		return nil
 	})
 }
 
