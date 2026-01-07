@@ -3,6 +3,7 @@ package eventemitter
 import (
 	"context"
 	"errors"
+	"reflect"
 	"sync"
 )
 
@@ -58,7 +59,7 @@ func (e *SyncEventEmitter) RemoveListener(event string, listener Listener) {
 	entries := e.listeners[event]
 	for i, entry := range entries {
 		// Compare function pointers
-		if &entry.listener == &listener {
+		if reflect.ValueOf(entry.listener).Pointer() == reflect.ValueOf(listener).Pointer() {
 			e.listeners[event] = append(entries[:i], entries[i+1:]...)
 			return
 		}

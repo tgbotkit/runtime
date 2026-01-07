@@ -19,7 +19,8 @@ func New() (*CommandParser, error) {
 	return &CommandParser{}, nil
 }
 
-func (h *CommandParser) Subscribe(ee eventemitter.EventEmitter) {
+func (h *CommandParser) Subscribe(bot events.BotContext) {
+	ee := bot.EventEmitter()
 	eventemitter.On[events.BotEvent](ee, events.OnBeforeStart, h.onBeforeStart)
 	eventemitter.On[events.MessageEvent](ee, events.OnTextMessageReceived, h.onTextMessageReceived)
 }

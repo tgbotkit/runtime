@@ -8,12 +8,21 @@ import (
 	"github.com/tgbotkit/runtime/events"
 )
 
-func Subscribe(ee eventemitter.EventEmitter) {
-	eventemitter.On[events.UpdateEvent](ee, events.OnUpdateReceived, onUpdateReceived)
-	eventemitter.On[events.MessageEvent](ee, events.OnMessageReceived, onMessageReceived)
+// Classifier component.
+type Classifier struct{}
+
+// New creates a new Classifier.
+func New() *Classifier {
+	return &Classifier{}
 }
 
-func onUpdateReceived(ctx context.Context, event *events.UpdateEvent) error {
+func (c *Classifier) Subscribe(bot events.BotContext) {
+	ee := bot.EventEmitter()
+	eventemitter.On[events.UpdateEvent](ee, events.OnUpdateReceived, c.onUpdateReceived)
+	eventemitter.On[events.MessageEvent](ee, events.OnMessageReceived, c.onMessageReceived)
+}
+
+func (c *Classifier) onUpdateReceived(ctx context.Context, event *events.UpdateEvent) error {
 	if event == nil || event.Update == nil || event.Update.Message == nil {
 		return nil
 	}
@@ -21,7 +30,7 @@ func onUpdateReceived(ctx context.Context, event *events.UpdateEvent) error {
 	return nil
 }
 
-func onMessageReceived(ctx context.Context, event *events.MessageEvent) error {
+func (c *Classifier) onMessageReceived(ctx context.Context, event *events.MessageEvent) error {
 	if event == nil || event.Message == nil {
 		return nil
 	}

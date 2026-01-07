@@ -57,13 +57,13 @@ func New(opts Options) (*Bot, error) {
 	}
 
 	// Subscribe internal components
-	classifier.Subscribe(opts.eventEmitter)
+	classifier.New().Subscribe(bot)
 
 	cp, err := commandparser.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create command parser: %w", err)
 	}
-	cp.Subscribe(opts.eventEmitter)
+	cp.Subscribe(bot)
 
 	return bot, nil
 }
@@ -92,7 +92,7 @@ func (b *Bot) Run(ctx context.Context) error {
 
 // AddHandler registers a new event handler with the bot's event emitter.
 func (b *Bot) AddHandler(h Handler) *Bot {
-	h.Subscribe(b.opts.eventEmitter)
+	h.Subscribe(b)
 	return b
 }
 
@@ -131,13 +131,13 @@ func (b *Bot) receiveLoop(ctx context.Context) error {
 
 // Handler is an interface for components that subscribe to events.
 type Handler interface {
-	Subscribe(eventemitter.EventEmitter)
+	Subscribe(events.BotContext)
 }
 
 // HandlerFunc is an adapter to allow the use of ordinary functions as Handlers.
-type HandlerFunc func(eventemitter.EventEmitter)
+type HandlerFunc func(events.BotContext)
 
-// Subscribe calls f(ee), allowing HandlerFunc to implement the Handler interface.
-func (f HandlerFunc) Subscribe(ee eventemitter.EventEmitter) {
-f(ee)
+// Subscribe calls f(bot), allowing HandlerFunc to implement the Handler interface.
+func (f HandlerFunc) Subscribe(bot events.BotContext) {
+	f(bot)
 }

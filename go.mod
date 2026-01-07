@@ -2,7 +2,7 @@ module github.com/tgbotkit/runtime
 
 go 1.25.5
 
-require github.com/tgbotkit/client v0.3.1
+require github.com/tgbotkit/client v0.3.2
 
 require github.com/kazhuravlev/options-gen v0.55.3
 

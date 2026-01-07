@@ -35,11 +35,11 @@ func main() {
 	}
 
 	bot.AddHandler(runtime.HandlerFunc(func(bot events.BotContext) {
-		eventemitter.On[events.MessageEvent](bot.EventEmitter(), events.OnMessageReceived, func(ctx context.Context, event *events.MessageEvent) error {
-			if event.Message.Text != nil && *event.Message.Text == "ping" {
+		eventemitter.On[events.CommandEvent](bot.EventEmitter(), events.OnCommand, func(ctx context.Context, event *events.CommandEvent) error {
+			if event.Command == "start" {
 				_, _ = bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
 					ChatId: event.Message.Chat.Id,
-					Text:   "pong",
+					Text:   "Hello! I am a bot running on a webhook.",
 				})
 			}
 			return nil
