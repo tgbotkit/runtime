@@ -2,40 +2,29 @@ package events
 
 import (
 	"github.com/tgbotkit/client"
-	"github.com/tgbotkit/runtime/eventemitter"
-	"github.com/tgbotkit/runtime/logger"
+	"github.com/tgbotkit/runtime/botcontext"
+	"github.com/tgbotkit/runtime/messagetype"
 )
-
-// BotContext provides access to bot capabilities without coupling to internals.
-type BotContext interface {
-	Client() client.ClientWithResponsesInterface
-	EventEmitter() eventemitter.EventEmitter
-	Logger() logger.Logger
-}
-
-// BotEvent is a generic event that includes the bot context.
-// It is used for simple lifecycle events like OnBeforeStart.
-type BotEvent struct {
-	Bot BotContext
-}
 
 // UpdateEvent is emitted when a new update is received.
 type UpdateEvent struct {
-	Bot BotContext
+	Bot botcontext.BotContext
 	// Update is the received update.
 	Update *client.Update
 }
 
 // MessageEvent is emitted when a new message is received.
 type MessageEvent struct {
-	Bot BotContext
+	Bot botcontext.BotContext
 	// Message is the received message.
 	Message *client.Message
+	// Type is the type of the message.
+	Type messagetype.MessageType
 }
 
 // CommandEvent is emitted when a command is received.
 type CommandEvent struct {
-	Bot BotContext
+	Bot botcontext.BotContext
 	// Message is the received message.
 	Message *client.Message
 	// Command is the received command name (without /).

@@ -10,7 +10,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime"
-	"github.com/tgbotkit/runtime/eventemitter"
+	"github.com/tgbotkit/runtime/botcontext"
 	"github.com/tgbotkit/runtime/events"
 )
 
@@ -27,17 +27,16 @@ func main() {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
-	bot.AddHandler(runtime.HandlerFunc(func(bot events.BotContext) {
-		eventemitter.On[events.MessageEvent](bot.EventEmitter(), events.OnMessageReceived, func(ctx context.Context, event *events.MessageEvent) error {
-			if event.Message.Text != nil && *event.Message.Text == "ping" {
-				_, _ = bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
-					ChatId: event.Message.Chat.Id,
-					Text:   "pong",
-				})
-			}
-			return nil
-		})
-	}))
+	bot.Handlers().OnMessage(func(ctx context.Context, event *events.MessageEvent) error {
+		b := botcontext.FromContext(ctx)
+		if event.Message.Text != nil && *event.Message.Text == "ping" {
+			_, _ = b.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
+				ChatId: event.Message.Chat.Id,
+				Text:   "pong",
+			})
+		}
+		return nil
+	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

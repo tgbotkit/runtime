@@ -6,18 +6,20 @@ import (
 	"time"
 
 	"github.com/tgbotkit/client"
+	"github.com/tgbotkit/runtime/botcontext"
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/events"
-	"github.com/tgbotkit/runtime/internal/classifier"
-	"github.com/tgbotkit/runtime/internal/commandparser"
+	"github.com/tgbotkit/runtime/handlers"
 	"github.com/tgbotkit/runtime/logger"
+	"github.com/tgbotkit/runtime/middleware"
 	"github.com/tgbotkit/runtime/updatepoller"
 	"github.com/tgbotkit/runtime/updatepoller/offsetstore"
 )
 
 // Bot is the main bot structure.
 type Bot struct {
-	opts Options
+	opts     Options
+	registry *handlers.Registry
 }
 
 // New creates a new Bot instance with the given options.
@@ -52,18 +54,21 @@ func New(opts Options) (*Bot, error) {
 		}
 	}
 
+	botName, err := loadBotName(opts.client)
+	if err != nil {
+		return nil, err
+	}
+
 	bot := &Bot{
 		opts: opts,
 	}
+	bot.registry = handlers.NewRegistry(bot.opts.eventEmitter)
 
-	// Subscribe internal components
-	classifier.New().Subscribe(bot)
-
-	cp, err := commandparser.New()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create command parser: %w", err)
-	}
-	cp.Subscribe(bot)
+	// Register internal middlewares
+	opts.eventEmitter.Use(events.OnUpdate, middleware.Recoverer(bot.opts.logger))
+	opts.eventEmitter.Use(events.OnUpdate, middleware.ContextInjector(bot))
+	opts.eventEmitter.Use(events.OnUpdate, middleware.Classifier())
+	opts.eventEmitter.Use(events.OnMessage, middleware.CommandParser(opts.eventEmitter, botName))
 
 	return bot, nil
 }
@@ -71,7 +76,7 @@ func New(opts Options) (*Bot, error) {
 // Run starts the bot's update processing loop and blocks until the context is canceled.
 // It initializes a default update poller if no update source is configured.
 func (b *Bot) Run(ctx context.Context) error {
-	b.opts.eventEmitter.Emit(ctx, events.OnBeforeStart, &events.BotEvent{Bot: b})
+	ctx = botcontext.WithBotContext(ctx, b)
 
 	// init default update source if not provided
 	if b.opts.updateSource == nil {
@@ -90,12 +95,6 @@ func (b *Bot) Run(ctx context.Context) error {
 	return b.receiveLoop(ctx)
 }
 
-// AddHandler registers a new event handler with the bot's event emitter.
-func (b *Bot) AddHandler(h Handler) *Bot {
-	h.Subscribe(b)
-	return b
-}
-
 // Client returns the underlying Telegram Bot API client.
 func (b *Bot) Client() client.ClientWithResponsesInterface {
 	return b.opts.client
@@ -111,6 +110,24 @@ func (b *Bot) Logger() logger.Logger {
 	return b.opts.logger
 }
 
+// Handlers returns the bot's handler registry.
+func (b *Bot) Handlers() handlers.HandlerRegistry {
+	return b.registry
+}
+
+func loadBotName(api client.ClientWithResponsesInterface) (string, error) {
+	// Fetch bot's own info to get the username
+	// It is important to do it once at startup
+	me, err := api.GetMeWithResponse(context.Background())
+	if err != nil {
+		return "", fmt.Errorf("failed to get bot info: %w", err)
+	}
+	if me.JSON200 == nil || me.JSON200.Result.Username == nil {
+		return "", fmt.Errorf("could not retrieve bot username from GetMe response")
+	}
+	return *me.JSON200.Result.Username, nil
+}
+
 // receiveLoop is the main event loop that consumes updates from the update source
 // and emits them to the event emitter.
 func (b *Bot) receiveLoop(ctx context.Context) error {
@@ -124,20 +141,7 @@ func (b *Bot) receiveLoop(ctx context.Context) error {
 				// Channel closed, graceful shutdown.
 				return nil
 			}
-			b.opts.eventEmitter.Emit(ctx, events.OnUpdateReceived, &events.UpdateEvent{Bot: b, Update: &update})
+			b.opts.eventEmitter.Emit(ctx, events.OnUpdate, &events.UpdateEvent{Bot: b, Update: &update})
 		}
 	}
-}
-
-// Handler is an interface for components that subscribe to events.
-type Handler interface {
-	Subscribe(events.BotContext)
-}
-
-// HandlerFunc is an adapter to allow the use of ordinary functions as Handlers.
-type HandlerFunc func(events.BotContext)
-
-// Subscribe calls f(bot), allowing HandlerFunc to implement the Handler interface.
-func (f HandlerFunc) Subscribe(bot events.BotContext) {
-	f(bot)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime"
-	"github.com/tgbotkit/runtime/eventemitter"
+	"github.com/tgbotkit/runtime/botcontext"
 	"github.com/tgbotkit/runtime/events"
 	"github.com/tgbotkit/runtime/webhook"
 )
@@ -34,17 +35,26 @@ func main() {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
-	bot.AddHandler(runtime.HandlerFunc(func(bot events.BotContext) {
-		eventemitter.On[events.CommandEvent](bot.EventEmitter(), events.OnCommand, func(ctx context.Context, event *events.CommandEvent) error {
-			if event.Command == "start" {
-				_, _ = bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
-					ChatId: event.Message.Chat.Id,
-					Text:   "Hello! I am a bot running on a webhook.",
-				})
-			}
+	bot.Handlers().OnCommand(func(ctx context.Context, event *events.CommandEvent) error {
+		if event.Command != "start" {
 			return nil
+		}
+
+		b := botcontext.FromContext(ctx)
+
+		text := fmt.Sprintf("You sent the command: /%s\n", event.Command)
+		if event.Args != "" {
+			text += fmt.Sprintf("With arguments: %s", event.Args)
+		} else {
+			text += "With no arguments."
+		}
+
+		_, _ = b.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
+			ChatId: event.Message.Chat.Id,
+			Text:   text,
 		})
-	}))
+		return nil
+	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
