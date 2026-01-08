@@ -34,6 +34,7 @@ func NewRegistry(em eventemitter.EventEmitter, l logger.Logger) *Registry {
 // OnUpdate registers a handler for the OnUpdateReceived event.
 func (r *Registry) OnUpdate(handler UpdateHandler) eventemitter.UnsubscribeFunc {
 	r.l.Debugf("adding OnUpdate handler: %T", handler)
+
 	return eventemitter.On(r.em, events.OnUpdate, func(ctx context.Context, event *events.UpdateEvent) error {
 		return handler(ctx, event)
 	})
@@ -42,6 +43,7 @@ func (r *Registry) OnUpdate(handler UpdateHandler) eventemitter.UnsubscribeFunc 
 // OnMessage registers a handler for the OnMessageReceived event.
 func (r *Registry) OnMessage(handler MessageHandler) eventemitter.UnsubscribeFunc {
 	r.l.Debugf("adding OnMessage handler: %T", handler)
+
 	return eventemitter.On(r.em, events.OnMessage, func(ctx context.Context, event *events.MessageEvent) error {
 		return handler(ctx, event)
 	})
@@ -50,6 +52,7 @@ func (r *Registry) OnMessage(handler MessageHandler) eventemitter.UnsubscribeFun
 // OnMessageType registers a handler for the OnMessageReceived event with a specific message type.
 func (r *Registry) OnMessageType(t messagetype.MessageType, handler MessageHandler) eventemitter.UnsubscribeFunc {
 	r.l.Debugf("adding OnMessageType handler: %T for type %s", handler, t)
+
 	return eventemitter.On(r.em, events.OnMessage, func(ctx context.Context, event *events.MessageEvent) error {
 		if event.Type != t {
 			return nil
@@ -62,6 +65,7 @@ func (r *Registry) OnMessageType(t messagetype.MessageType, handler MessageHandl
 // OnCommand registers a handler for the OnCommand event.
 func (r *Registry) OnCommand(handler CommandHandler) eventemitter.UnsubscribeFunc {
 	r.l.Debugf("adding OnCommand handler: %T", handler)
+
 	return eventemitter.On(r.em, events.OnCommand, func(ctx context.Context, event *events.CommandEvent) error {
 		return handler(ctx, event)
 	})

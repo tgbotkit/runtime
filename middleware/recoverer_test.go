@@ -19,7 +19,7 @@ func TestRecoverer(t *testing.T) {
 
 		// Should not panic
 		err := recoverer.Handle(next).Handle(context.Background(), "test")
-		
+
 		assert.NoError(t, err)
 		assert.True(t, logger.errorfCalled, "Errorf should be called on panic")
 	})
@@ -33,7 +33,7 @@ func TestRecoverer(t *testing.T) {
 		})
 
 		err := recoverer.Handle(next).Handle(context.Background(), "test")
-		
+
 		assert.NoError(t, err)
 		assert.False(t, logger.errorfCalled, "Errorf should not be called without panic")
 	})

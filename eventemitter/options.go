@@ -4,6 +4,6 @@ package eventemitter
 
 // Options defines the configuration for an EventEmitter.
 type Options struct {
+	stopOnError  bool         `default:"true"    option:"optional"`
 	errorHandler ErrorHandler `option:"optional"`
-	stopOnError  bool         `option:"optional" default:"true"`
 }

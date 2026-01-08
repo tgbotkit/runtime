@@ -28,6 +28,7 @@ func New(opts Options) (*Webhook, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, err
 	}
+
 	return &Webhook{
 		opts:    opts,
 		updates: make(chan client.Update, opts.bufferSize),
@@ -81,18 +82,21 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(h.opts.token) > 0 {
 		if r.Header.Get(HeaderTelegramBotAPISecretToken) != h.opts.token {
 			w.WriteHeader(http.StatusUnauthorized)
+
 			return
 		}
 	}
 
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+
 		return
 	}
 
 	var update client.Update
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+
 		return
 	}
 

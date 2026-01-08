@@ -27,12 +27,12 @@ func main() {
 	// Register a handler for the /start command
 	bot.Handlers().OnCommand(func(ctx context.Context, event *events.CommandEvent) error {
 		if event.Command == "start" {
-			log.Printf("Received /start command from %d", event.Message.Chat.Id)
 			_, _ = bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
 				ChatId: event.Message.Chat.Id,
-				Text:   "Hello! I am a bot built with tgbotkit.",
+				Text:   "Hello! I am a bot built with tgbotkit-runtime.",
 			})
 		}
+
 		return nil
 	})
 

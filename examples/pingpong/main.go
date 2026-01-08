@@ -33,6 +33,7 @@ func main() {
 				Text:   "pong",
 			})
 		}
+
 		return nil
 	})
 

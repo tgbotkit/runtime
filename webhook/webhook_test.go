@@ -63,7 +63,7 @@ func TestWebhook_ServeHTTP_SecretToken(t *testing.T) {
 		wh.ServeHTTP(rr, req)
 
 		assert.Equal(t, http.StatusOK, rr.Code)
-		
+
 		select {
 		case u := <-wh.UpdateChan():
 			assert.Equal(t, 456, u.UpdateId)
@@ -135,7 +135,7 @@ func TestWebhook_ServeHTTP_Timeout(t *testing.T) {
 	}
 
 	// Channel is now full. Next request should block or timeout.
-	
+
 	// Create a context that is already canceled to simulate immediate timeout/client disconnect
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

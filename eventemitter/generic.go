@@ -11,7 +11,9 @@ func On[E any](ee EventEmitter, event string, handler TypedListener[E]) Unsubscr
 		if e, ok := payload.(*E); ok {
 			return handler(ctx, e)
 		}
+
 		return nil
 	})
+
 	return ee.AddListener(event, listener)
 }

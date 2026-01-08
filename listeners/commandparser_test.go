@@ -34,7 +34,7 @@ func TestCommandParser(t *testing.T) {
 				{Type: "bot_command", Offset: 0, Length: 6},
 			},
 		}
-		
+
 		event := &events.MessageEvent{
 			Message: msg,
 			Type:    messagetype.Text,
@@ -127,12 +127,12 @@ func TestCommandParser(t *testing.T) {
 	t.Run("ignores non-text message", func(t *testing.T) {
 		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
 		parser := listeners.CommandParser(ee, botName)
-		
+
 		event := &events.MessageEvent{Type: messagetype.Photo}
 		err := parser.Handle(context.Background(), event)
 		assert.NoError(t, err)
 	})
-	
+
 	t.Run("ignores invalid payload", func(t *testing.T) {
 		err := parser.Handle(context.Background(), "string")
 		assert.NoError(t, err)

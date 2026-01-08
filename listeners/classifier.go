@@ -9,7 +9,8 @@ import (
 	"github.com/tgbotkit/runtime/messagetype"
 )
 
-// Classifier returns a listener that analyzes incoming updates and emits more specific events based on the update content.
+// Classifier returns a listener that analyzes incoming updates and emits more specific events
+// based on the update content.
 func Classifier(emitter eventemitter.EventEmitter) eventemitter.Listener {
 	return eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
 		if event, ok := payload.(*events.UpdateEvent); ok {
@@ -17,6 +18,7 @@ func Classifier(emitter eventemitter.EventEmitter) eventemitter.Listener {
 				classifyUpdate(ctx, emitter, event)
 			}
 		}
+
 		return nil
 	})
 }

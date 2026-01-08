@@ -44,6 +44,7 @@ func (e *SyncEventEmitter) AddListener(event string, listener Listener) Unsubscr
 
 	entry := &listenerEntry{Listener: listener, Once: false, Event: event}
 	e.listeners[event] = append(e.listeners[event], entry)
+
 	return func() {
 		e.removeListener(event, entry)
 	}
@@ -56,37 +57,82 @@ func (e *SyncEventEmitter) Once(event string, listener Listener) UnsubscribeFunc
 
 	entry := &listenerEntry{Listener: listener, Once: true, Event: event}
 	e.listeners[event] = append(e.listeners[event], entry)
+
 	return func() {
 		e.removeListener(event, entry)
 	}
 }
 
-// removeListener removes a specific listener for the given event.
-func (e *SyncEventEmitter) removeListener(event string, entry *listenerEntry) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.internalRemoveListener(event, entry)
-}
+// Emit notifies all listeners of the given event with the provided payload.
+func (e *SyncEventEmitter) Emit(ctx context.Context, event string, payload any) {
+	entries, middleware := e.getListenersAndMiddleware(event)
 
-func (e *SyncEventEmitter) internalRemoveListener(event string, entry *listenerEntry) {
-	entries := e.listeners[event]
-	for i, existingEntry := range entries {
-		if existingEntry == entry {
-			e.listeners[event] = append(entries[:i], entries[i+1:]...)
-			// Clean up empty slices to keep the map clean
-			if len(e.listeners[event]) == 0 {
-				delete(e.listeners, event)
+	var toRemove []*listenerEntry
+
+	for _, entry := range entries {
+		if stop := e.handleEntry(ctx, event, payload, entry, middleware); stop {
+			if entry.Once {
+				toRemove = append(toRemove, entry)
 			}
-			return
+
+			break
+		}
+
+		if entry.Once {
+			toRemove = append(toRemove, entry)
+		}
+	}
+
+	if len(toRemove) > 0 {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+
+		for _, entry := range toRemove {
+			e.internalRemoveListener(entry.Event, entry)
 		}
 	}
 }
 
-// Emit notifies all listeners of the given event with the provided payload.
-func (e *SyncEventEmitter) Emit(ctx context.Context, event string, payload any) {
+// Use applies middleware to the given event.
+func (e *SyncEventEmitter) Use(event string, middleware ...Middleware) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.middleware[event] = append(e.middleware[event], middleware...)
+}
+
+// ListenerCount returns the number of listeners for the given event.
+func (e *SyncEventEmitter) ListenerCount(event string) int {
 	e.mu.RLock()
-	
+	defer e.mu.RUnlock()
+
+	count := 0
+
+	for pattern, listeners := range e.listeners {
+		matched, err := path.Match(pattern, event)
+		if err == nil && matched {
+			count += len(listeners)
+		}
+	}
+
+	return count
+}
+
+// RemoveAllListeners removes all listeners for the given event.
+func (e *SyncEventEmitter) RemoveAllListeners(event string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// If exact match, delete it
+	delete(e.listeners, event)
+}
+
+func (e *SyncEventEmitter) getListenersAndMiddleware(event string) ([]*listenerEntry, []Middleware) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
 	var entries []*listenerEntry
+
 	var middleware []Middleware
 
 	// Find all matching listeners and middleware
@@ -103,80 +149,61 @@ func (e *SyncEventEmitter) Emit(ctx context.Context, event string, payload any) 
 			middleware = append(middleware, mws...)
 		}
 	}
-	
-	e.mu.RUnlock()
 
-	var toRemove []*listenerEntry
-
-	for _, entry := range entries {
-		// Chain middleware and the listener.
-		listener := entry.Listener
-		for i := len(middleware) - 1; i >= 0; i-- {
-			listener = middleware[i].Handle(listener)
-		}
-
-		if err := listener.Handle(ctx, payload); err != nil {
-			// ErrBreak stops propagation without being an error
-			if errors.Is(err, ErrBreak) {
-				if entry.Once {
-					toRemove = append(toRemove, entry)
-				}
-				break
-			}
-
-			if e.opts.errorHandler != nil {
-				e.opts.errorHandler(event, err)
-			}
-
-			if e.opts.stopOnError {
-				if entry.Once {
-					toRemove = append(toRemove, entry)
-				}
-				break
-			}
-		}
-
-		if entry.Once {
-			toRemove = append(toRemove, entry)
-		}
-	}
-
-	if len(toRemove) > 0 {
-		e.mu.Lock()
-		defer e.mu.Unlock()
-		for _, entry := range toRemove {
-			e.internalRemoveListener(entry.Event, entry)
-		}
-	}
+	return entries, middleware
 }
 
-// Use applies middleware to the given event.
-func (e *SyncEventEmitter) Use(event string, middleware ...Middleware) {
+func (e *SyncEventEmitter) handleEntry(
+	ctx context.Context,
+	event string,
+	payload any,
+	entry *listenerEntry,
+	middleware []Middleware,
+) bool {
+	// Chain middleware and the listener.
+	listener := entry.Listener
+	for i := len(middleware) - 1; i >= 0; i-- {
+		listener = middleware[i].Handle(listener)
+	}
+
+	if err := listener.Handle(ctx, payload); err != nil {
+		// ErrBreak stops propagation without being an error
+		if errors.Is(err, ErrBreak) {
+			return true
+		}
+
+		if e.opts.errorHandler != nil {
+			e.opts.errorHandler(event, err)
+		}
+
+		if e.opts.stopOnError {
+			return true
+		}
+	}
+
+	return false
+}
+
+// removeListener removes a specific listener for the given event.
+func (e *SyncEventEmitter) removeListener(event string, entry *listenerEntry) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.middleware[event] = append(e.middleware[event], middleware...)
+
+	e.internalRemoveListener(event, entry)
 }
 
-// ListenerCount returns the number of listeners for the given event.
-func (e *SyncEventEmitter) ListenerCount(event string) int {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	
-	count := 0
-	for pattern, listeners := range e.listeners {
-		matched, err := path.Match(pattern, event)
-		if err == nil && matched {
-			count += len(listeners)
+func (e *SyncEventEmitter) internalRemoveListener(event string, entry *listenerEntry) {
+	entries := e.listeners[event]
+
+	for i, existingEntry := range entries {
+		if existingEntry == entry {
+			e.listeners[event] = append(entries[:i], entries[i+1:]...)
+			// Clean up empty slices to keep the map clean
+			if len(e.listeners[event]) == 0 {
+				delete(e.listeners, event)
+			}
+
+			return
 		}
 	}
-	return count
-}
-
-// RemoveAllListeners removes all listeners for the given event.
-func (e *SyncEventEmitter) RemoveAllListeners(event string) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	
-	// If exact match, delete it
-	delete(e.listeners, event)
 }

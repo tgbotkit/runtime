@@ -101,7 +101,7 @@ func TestBot_Run(t *testing.T) {
 	us := &mockUpdateSource{ch: make(chan client.Update, 1)}
 
 	ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
-	
+
 	// Track event emission
 	var eventReceived atomic.Bool
 	ee.AddListener(events.OnUpdate, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {

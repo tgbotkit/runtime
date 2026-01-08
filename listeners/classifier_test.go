@@ -45,11 +45,11 @@ func TestClassifier(t *testing.T) {
 		var receivedEvent *events.MessageEvent
 		// Clear previous listeners or use new emitter? Reusing ee is fine if we add new listener or reset.
 		// Easier to just use checks.
-		
+
 		// Let's create a new emitter for clean state
 		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
 		classifier := listeners.Classifier(ee)
-		
+
 		ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
 			if e, ok := payload.(*events.MessageEvent); ok {
 				receivedEvent = e
@@ -74,7 +74,7 @@ func TestClassifier(t *testing.T) {
 	t.Run("ignores updates without message", func(t *testing.T) {
 		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
 		classifier := listeners.Classifier(ee)
-		
+
 		var called bool
 		ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
 			called = true
@@ -90,7 +90,7 @@ func TestClassifier(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, called)
 	})
-	
+
 	t.Run("ignores invalid payload", func(t *testing.T) {
 		err := classifier.Handle(context.Background(), "invalid-payload")
 		assert.NoError(t, err)

@@ -27,13 +27,17 @@ func NewPoller(opts Options) (*Poller, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid poller options: %w", err)
 	}
+
 	if opts.logger == nil {
 		opts.logger = logger.NewNop()
 	}
+
+	const updatesBufSize = 100
+
 	return &Poller{
 		opts:    opts,
 		log:     opts.logger,
-		updates: make(chan client.Update, 1),
+		updates: make(chan client.Update, updatesBufSize),
 	}, nil
 }
 
@@ -49,8 +53,10 @@ func (p *Poller) Start(_ context.Context) error {
 
 	go func() {
 		defer p.wg.Done()
+
 		ticker := time.NewTicker(p.opts.pollingInterval)
 		defer ticker.Stop()
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -72,8 +78,10 @@ func (p *Poller) Stop(ctx context.Context) error {
 	}
 
 	c := make(chan struct{})
+
 	go func() {
 		defer close(c)
+
 		p.wg.Wait()
 	}()
 
@@ -96,6 +104,7 @@ func (p *Poller) poll(ctx context.Context) {
 		if ctx.Err() == nil {
 			p.log.Errorf("load offset: %v", err)
 		}
+
 		return
 	}
 
@@ -106,32 +115,40 @@ func (p *Poller) poll(ctx context.Context) {
 		if ctx.Err() == nil {
 			p.log.Errorf("fetch updates: %v", err)
 		}
+
 		return
 	}
 
 	if resp.StatusCode() != http.StatusOK {
 		p.log.Errorf("fetch updates: %s", resp.Status())
+
 		return
 	}
 
-	if resp.JSON200 == nil {
+	if resp.JSON200 == nil || len(resp.JSON200.Result) == 0 {
 		return
 	}
 
-	for _, update := range resp.JSON200.Result {
+	newOffset := p.processUpdates(ctx, resp.JSON200.Result)
+
+	if saveErr := p.opts.offsetStore.Save(ctx, newOffset); saveErr != nil {
+		if ctx.Err() == nil {
+			p.log.Errorf("save offset: %v", saveErr)
+		}
+	}
+}
+
+func (p *Poller) processUpdates(ctx context.Context, updates []client.Update) int {
+	var lastID int
+
+	for _, update := range updates {
 		select {
 		case <-ctx.Done():
-			return
+			return lastID + 1
 		case p.updates <- update:
-			offset = update.UpdateId + 1
+			lastID = update.UpdateId
 		}
 	}
 
-	if len(resp.JSON200.Result) > 0 {
-		if saveErr := p.opts.offsetStore.Save(ctx, offset); saveErr != nil {
-			if ctx.Err() == nil {
-				p.log.Errorf("save offset: %v", saveErr)
-			}
-		}
-	}
+	return lastID + 1
 }

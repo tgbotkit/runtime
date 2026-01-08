@@ -374,12 +374,12 @@ func TestEventEmitter_Once_Unsubscribe(t *testing.T) {
 func TestEventEmitter_UnsubscribeTwice(t *testing.T) {
 	ee, _ := NewSync(NewOptions())
 	unsubscribe := ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error { return nil }))
-	
+
 	unsubscribe()
 	if ee.ListenerCount("test") != 0 {
 		t.Errorf("expected 0 listeners, got %d", ee.ListenerCount("test"))
 	}
-	
+
 	// Should not panic or cause issues
 	unsubscribe()
 }

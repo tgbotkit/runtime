@@ -1,21 +1,23 @@
 // Package messagetype provides constants and utilities for identifying the type of a Telegram message.
+// It allows for easy routing and handling of different message contents and service events.
 package messagetype
 
 import (
 	"github.com/tgbotkit/client"
 )
 
-// MessageType used for message routing.
+// MessageType represents the classification of a Telegram message.
 type MessageType string
 
-// Detect inspects the message and returns its type.
+// Detect inspects a Telegram message and returns its most specific type.
+// It prioritizes service messages (e.g., chat member changes) over standard content (e.g., text).
+//
+//nolint:gocyclo,cyclop,funlen,maintidx
 func Detect(message *client.Message) MessageType {
 	if message == nil {
 		return Unknown
 	}
 
-	// The order is important: check for specific service messages first,
-	// then for standard content types.
 	switch {
 	// Service messages
 	case message.NewChatMembers != nil:
@@ -115,7 +117,7 @@ func Detect(message *client.Message) MessageType {
 	case message.ConnectedWebsite != nil:
 		return ConnectedWebsite
 
-	// Standard content types
+	// Standard messages
 	case message.Text != nil:
 		return Text
 	case message.Animation != nil:
@@ -156,15 +158,13 @@ func Detect(message *client.Message) MessageType {
 		return PaidMedia
 	case message.Giveaway != nil:
 		return Giveaway
-
 	default:
 		return Unknown
 	}
 }
 
-// Constants for message types, derived from the client.Message struct.
+// Standard Content Types.
 const (
-	// Standard content message types.
 	Text      MessageType = "text"
 	Animation MessageType = "animation"
 	Audio     MessageType = "audio"
@@ -185,57 +185,86 @@ const (
 	Checklist MessageType = "checklist"
 	PaidMedia MessageType = "paid_media"
 	Giveaway  MessageType = "giveaway"
+)
 
-	// Service message types.
-	BoostAdded                   MessageType = "boost_added"
-	ChatBackgroundSet            MessageType = "chat_background_set"
-	ChatShared                   MessageType = "chat_shared"
-	ChecklistTasksAdded          MessageType = "checklist_tasks_added"
-	ChecklistTasksDone           MessageType = "checklist_tasks_done"
-	ConnectedWebsite             MessageType = "connected_website"
-	DeleteChatPhoto              MessageType = "delete_chat_photo"
-	DirectMessagePriceChanged    MessageType = "direct_message_price_changed"
-	ForumTopicClosed             MessageType = "forum_topic_closed"
-	ForumTopicCreated            MessageType = "forum_topic_created"
-	ForumTopicEdited             MessageType = "forum_topic_edited"
-	ForumTopicReopened           MessageType = "forum_topic_reopened"
-	GeneralForumTopicHidden      MessageType = "general_forum_topic_hidden"
-	GeneralForumTopicUnhidden    MessageType = "general_forum_topic_unhidden"
-	Gift                         MessageType = "gift"
-	GiftUpgradeSent              MessageType = "gift_upgrade_sent"
-	GiveawayCompleted            MessageType = "giveaway_completed"
-	GiveawayCreated              MessageType = "giveaway_created"
-	GiveawayWinners              MessageType = "giveaway_winners"
-	GroupChatCreated             MessageType = "group_chat_created"
-	LeftChatMember               MessageType = "left_chat_member"
-	MessageAutoDeleteTimerChanged  MessageType = "message_auto_delete_timer_changed"
-	MigrateFromChatID            MessageType = "migrate_from_chat_id"
-	MigrateToChatID              MessageType = "migrate_to_chat_id"
-	NewChatMembers               MessageType = "new_chat_members"
-	NewChatPhoto                 MessageType = "new_chat_photo"
-	NewChatTitle                 MessageType = "new_chat_title"
-	PaidMessagePriceChanged      MessageType = "paid_message_price_changed"
-	PassportData                 MessageType = "passport_data"
-	PinnedMessage                MessageType = "pinned_message"
-	ProximityAlertTriggered      MessageType = "proximity_alert_triggered"
-	RefundedPayment              MessageType = "refunded_payment"
-	SuccessfulPayment            MessageType = "successful_payment"
-	SuggestedPostApprovalFailed  MessageType = "suggested_post_approval_failed"
-	SuggestedPostApproved        MessageType = "suggested_post_approved"
-	SuggestedPostDeclined        MessageType = "suggested_post_declined"
-	SuggestedPostPaid            MessageType = "suggested_post_paid"
-	SuggestedPostRefunded        MessageType = "suggested_post_refunded"
-	SupergroupChatCreated        MessageType = "supergroup_chat_created"
-	ChannelChatCreated           MessageType = "channel_chat_created"
-	UniqueGift                   MessageType = "unique_gift"
-	UsersShared                  MessageType = "users_shared"
-	VideoChatEnded               MessageType = "video_chat_ended"
-	VideoChatParticipantsInvited MessageType = "video_chat_participants_invited"
+// Chat Lifecycle & Management.
+const (
+	NewChatMembers                MessageType = "new_chat_members"
+	LeftChatMember                MessageType = "left_chat_member"
+	NewChatTitle                  MessageType = "new_chat_title"
+	NewChatPhoto                  MessageType = "new_chat_photo"
+	DeleteChatPhoto               MessageType = "delete_chat_photo"
+	GroupChatCreated              MessageType = "group_chat_created"
+	SupergroupChatCreated         MessageType = "supergroup_chat_created"
+	ChannelChatCreated            MessageType = "channel_chat_created"
+	MessageAutoDeleteTimerChanged MessageType = "message_auto_delete_timer_changed"
+	MigrateFromChatID             MessageType = "migrate_from_chat_id"
+	MigrateToChatID               MessageType = "migrate_to_chat_id"
+)
+
+// Topic Management.
+const (
+	ForumTopicCreated         MessageType = "forum_topic_created"
+	ForumTopicEdited          MessageType = "forum_topic_edited"
+	ForumTopicClosed          MessageType = "forum_topic_closed"
+	ForumTopicReopened        MessageType = "forum_topic_reopened"
+	GeneralForumTopicHidden   MessageType = "general_forum_topic_hidden"
+	GeneralForumTopicUnhidden MessageType = "general_forum_topic_unhidden"
+)
+
+// Video Chat Events.
+const (
 	VideoChatScheduled           MessageType = "video_chat_scheduled"
 	VideoChatStarted             MessageType = "video_chat_started"
-	WebAppData                   MessageType = "web_app_data"
-	WriteAccessAllowed           MessageType = "write_access_allowed"
+	VideoChatEnded               MessageType = "video_chat_ended"
+	VideoChatParticipantsInvited MessageType = "video_chat_participants_invited"
+)
 
-	// Unknown message type.
+// Payments & Financial.
+const (
+	SuccessfulPayment MessageType = "successful_payment"
+	RefundedPayment   MessageType = "refunded_payment"
+)
+
+// Giveaways & Gifts.
+const (
+	GiveawayCompleted MessageType = "giveaway_completed"
+	GiveawayCreated   MessageType = "giveaway_created"
+	GiveawayWinners   MessageType = "giveaway_winners"
+	Gift              MessageType = "gift"
+	GiftUpgradeSent   MessageType = "gift_upgrade_sent"
+	UniqueGift        MessageType = "unique_gift"
+	BoostAdded        MessageType = "boost_added"
+)
+
+// Suggested Posts & Ads.
+const (
+	DirectMessagePriceChanged   MessageType = "direct_message_price_changed"
+	PaidMessagePriceChanged     MessageType = "paid_message_price_changed"
+	SuggestedPostApprovalFailed MessageType = "suggested_post_approval_failed"
+	SuggestedPostApproved       MessageType = "suggested_post_approved"
+	SuggestedPostDeclined       MessageType = "suggested_post_declined"
+	SuggestedPostPaid           MessageType = "suggested_post_paid"
+	SuggestedPostRefunded       MessageType = "suggested_post_refunded"
+)
+
+// Miscellaneous Service Events.
+const (
+	PinnedMessage           MessageType = "pinned_message"
+	UsersShared             MessageType = "users_shared"
+	ChatShared              MessageType = "chat_shared"
+	WriteAccessAllowed      MessageType = "write_access_allowed"
+	ProximityAlertTriggered MessageType = "proximity_alert_triggered"
+	WebAppData              MessageType = "web_app_data"
+	ChatBackgroundSet       MessageType = "chat_background_set"
+	ChecklistTasksAdded     MessageType = "checklist_tasks_added"
+	ChecklistTasksDone      MessageType = "checklist_tasks_done"
+	PassportData            MessageType = "passport_data"
+	ConnectedWebsite        MessageType = "connected_website"
+)
+
+// Special Types.
+const (
+	// Unknown is returned when the message type cannot be identified.
 	Unknown MessageType = "unknown"
 )

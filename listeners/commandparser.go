@@ -20,18 +20,26 @@ func CommandParser(emitter eventemitter.EventEmitter, botName string) eventemitt
 				if errors.Is(err, eventemitter.ErrBreak) {
 					return nil // Don't propagate further, but don't treat as an error.
 				}
+
 				return err
 			}
 		}
+
 		return nil
 	})
 }
 
 // parseCommand checks a message for a bot command and emits a CommandEvent if one is found.
-func parseCommand(ctx context.Context, emitter eventemitter.EventEmitter, event *events.MessageEvent, botName string) error {
+func parseCommand(
+	ctx context.Context,
+	emitter eventemitter.EventEmitter,
+	event *events.MessageEvent,
+	botName string,
+) error {
 	if event.Message == nil || event.Message.Text == nil || event.Message.Entities == nil {
 		return nil
 	}
+
 	text := *event.Message.Text
 
 	for _, entity := range *event.Message.Entities {
@@ -40,11 +48,13 @@ func parseCommand(ctx context.Context, emitter eventemitter.EventEmitter, event 
 		}
 
 		commandText := sliceText(text, entity.Offset, entity.Length)
+
 		parts := strings.Split(commandText, "@")
 		if len(parts) > 1 {
 			if botName == "" || parts[1] != botName {
 				continue // Command is for another bot
 			}
+
 			commandText = parts[0]
 		}
 
@@ -57,6 +67,7 @@ func parseCommand(ctx context.Context, emitter eventemitter.EventEmitter, event 
 			Command: commandText,
 			Args:    args,
 		})
+
 		return eventemitter.ErrBreak // Stop further processing of this message
 	}
 
@@ -65,26 +76,33 @@ func parseCommand(ctx context.Context, emitter eventemitter.EventEmitter, event 
 
 func sliceText(text string, offset int, length int) string {
 	runes := []rune(text)
+
 	if offset < 0 {
 		offset = 0
 	}
+
 	if offset >= len(runes) {
 		return ""
 	}
+
 	end := offset + length
 	if end > len(runes) {
 		end = len(runes)
 	}
+
 	return string(runes[offset:end])
 }
 
 func sliceTextFrom(text string, offset int) string {
 	runes := []rune(text)
+
 	if offset < 0 {
 		offset = 0
 	}
+
 	if offset >= len(runes) {
 		return ""
 	}
+
 	return string(runes[offset:])
 }

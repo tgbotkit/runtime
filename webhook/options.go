@@ -10,5 +10,5 @@ type Options struct {
 	token      string                              `option:"optional"`
 	url        string                              `option:"optional"`
 	client     client.ClientWithResponsesInterface `option:"optional"`
-	bufferSize int                                 `option:"optional" default:"100"`
+	bufferSize int                                 `default:"100"     option:"optional"`
 }

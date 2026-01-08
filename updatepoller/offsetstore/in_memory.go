@@ -28,5 +28,6 @@ func (s *InMemoryOffsetStore) Load(_ context.Context) (int, error) {
 // Save stores the new offset.
 func (s *InMemoryOffsetStore) Save(_ context.Context, offset int) error {
 	atomic.StoreInt64(&s.offset, int64(offset))
+
 	return nil
 }
