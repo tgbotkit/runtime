@@ -1,3 +1,4 @@
+// Package main provides an example of a bot using webhooks.
 package main
 
 import (
@@ -8,7 +9,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/joho/godotenv"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime"
 	"github.com/tgbotkit/runtime/events"
@@ -17,13 +17,12 @@ import (
 )
 
 func main() {
-	_ = godotenv.Load()
-
 	token := os.Getenv("TELEGRAM_TOKEN")
 	if token == "" {
 		log.Fatal("TELEGRAM_TOKEN is required")
 	}
 
+	// Initialize webhook update source
 	wh, _ := webhook.New(webhook.NewOptions())
 
 	bot, err := runtime.New(runtime.NewOptions(
@@ -34,6 +33,7 @@ func main() {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
+	// Register a handler for text message events only
 	bot.Handlers().OnMessageType(messagetype.Text, func(ctx context.Context, event *events.MessageEvent) error {
 		if event.Message.Text != nil && *event.Message.Text == "ping" {
 			_, _ = bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{

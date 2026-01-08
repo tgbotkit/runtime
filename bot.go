@@ -1,3 +1,4 @@
+// Package runtime provides the main bot logic and orchestration for the Telegram bot.
 package runtime
 
 import (
@@ -62,7 +63,7 @@ func New(opts Options) (*Bot, error) {
 	}
 
 	bot := &Bot{
-		opts: opts,
+		opts:     opts,
 		registry: handlers.NewRegistry(opts.eventEmitter, opts.logger),
 	}
 

@@ -13,7 +13,7 @@ func TestRecoverer(t *testing.T) {
 		logger := &mockLogger{}
 		recoverer := Recoverer(logger)
 
-		next := eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		next := eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
 			panic("test panic")
 		})
 
@@ -28,7 +28,7 @@ func TestRecoverer(t *testing.T) {
 		logger := &mockLogger{}
 		recoverer := Recoverer(logger)
 
-		next := eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		next := eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
 			return nil
 		})
 

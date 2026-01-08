@@ -4,4 +4,6 @@ run:
   timeout: 5m
 
 linters:
-  default: fast
+  enable:
+    - revive
+    - bodyclose

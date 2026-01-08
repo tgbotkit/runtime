@@ -13,21 +13,21 @@ type mockLogger struct {
 	errorfCalled bool
 }
 
-func (m *mockLogger) Errorf(format string, args ...interface{}) { m.errorfCalled = true }
-func (m *mockLogger) Fatalf(format string, args ...interface{}) {}
-func (m *mockLogger) Fatal(args ...interface{})                 {}
-func (m *mockLogger) Infof(format string, args ...interface{})  {}
-func (m *mockLogger) Info(args ...interface{})                  {}
-func (m *mockLogger) Warnf(format string, args ...interface{})  {}
-func (m *mockLogger) Debugf(format string, args ...interface{}) { m.debugfCalled = true }
-func (m *mockLogger) Debug(args ...interface{})                 {}
+func (m *mockLogger) Errorf(_ string, _ ...interface{}) { m.errorfCalled = true }
+func (m *mockLogger) Fatalf(_ string, _ ...interface{}) {}
+func (m *mockLogger) Fatal(_ ...interface{})            {}
+func (m *mockLogger) Infof(_ string, _ ...interface{})  {}
+func (m *mockLogger) Info(_ ...interface{})             {}
+func (m *mockLogger) Warnf(_ string, _ ...interface{})  {}
+func (m *mockLogger) Debugf(_ string, _ ...interface{}) { m.debugfCalled = true }
+func (m *mockLogger) Debug(_ ...interface{})            {}
 
 func TestLoggerMiddleware(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		l := &mockLogger{}
 		mw := Logger(l)
 
-		next := eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		next := eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
 			return nil
 		})
 
@@ -49,7 +49,7 @@ func TestLoggerMiddleware(t *testing.T) {
 		mw := Logger(l)
 
 		expectedErr := errors.New("test error")
-		next := eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		next := eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
 			return expectedErr
 		})
 

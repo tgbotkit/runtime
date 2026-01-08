@@ -18,7 +18,7 @@ func TestClassifier(t *testing.T) {
 
 	t.Run("classifies text message", func(t *testing.T) {
 		var receivedEvent *events.MessageEvent
-		ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
 			if e, ok := payload.(*events.MessageEvent); ok {
 				receivedEvent = e
 			}
@@ -50,7 +50,7 @@ func TestClassifier(t *testing.T) {
 		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
 		classifier := listeners.Classifier(ee)
 		
-		ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
 			if e, ok := payload.(*events.MessageEvent); ok {
 				receivedEvent = e
 			}
@@ -76,7 +76,7 @@ func TestClassifier(t *testing.T) {
 		classifier := listeners.Classifier(ee)
 		
 		var called bool
-		ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
 			called = true
 			return nil
 		}))
@@ -154,7 +154,7 @@ func TestClassifier(t *testing.T) {
 				ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
 				classifier := listeners.Classifier(ee)
 				var receivedEvent *events.MessageEvent
-				ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+				ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
 					receivedEvent = payload.(*events.MessageEvent)
 					return nil
 				}))

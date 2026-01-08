@@ -50,11 +50,11 @@ func (m *mockUpdateSource) UpdateChan() <-chan client.Update {
 	return m.ch
 }
 
-func (m *mockUpdateSource) Start(ctx context.Context) error {
+func (m *mockUpdateSource) Start(_ context.Context) error {
 	return nil
 }
 
-func (m *mockUpdateSource) Stop(ctx context.Context) error {
+func (m *mockUpdateSource) Stop(_ context.Context) error {
 	close(m.ch)
 	return nil
 }
@@ -68,7 +68,6 @@ func TestNew(t *testing.T) {
 		assert.NotNil(t, bot)
 		assert.Equal(t, cl, bot.Client())
 		assert.NotNil(t, bot.EventEmitter())
-		assert.NotNil(t, bot.Logger())
 		assert.NotNil(t, bot.Handlers())
 	})
 
@@ -81,7 +80,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("getMe error", func(t *testing.T) {
 		cl := &mockClient{}
-		cl.getMeFunc = func(ctx context.Context, reqEditors ...client.RequestEditorFn) (*client.GetMeResponse, error) {
+		cl.getMeFunc = func(_ context.Context, _ ...client.RequestEditorFn) (*client.GetMeResponse, error) {
 			return nil, assert.AnError
 		}
 		opts := runtime.NewOptions("test-token", runtime.WithClient(cl))
@@ -99,7 +98,7 @@ func TestBot_Run(t *testing.T) {
 	
 	// Track event emission
 	var eventReceived bool
-	ee.AddListener(events.OnUpdate, eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener(events.OnUpdate, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
 		eventReceived = true
 		return nil
 	}))

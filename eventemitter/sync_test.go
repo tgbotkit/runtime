@@ -16,12 +16,12 @@ func TestEventEmitter_Emit_BreakOnError(t *testing.T) {
 	var callCount int
 	errDummy := errors.New("dummy error")
 
-	ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error {
 		callCount++
 		return errDummy
 	}))
 
-	ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error {
 		callCount++
 		return nil
 	}))
@@ -49,7 +49,7 @@ func TestEventEmitter_Middleware(t *testing.T) {
 	}))
 
 	var handlerCalled bool
-	ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error {
 		handlerCalled = true
 		return nil
 	}))
@@ -72,7 +72,7 @@ func TestEventEmitter_RemoveListener(t *testing.T) {
 	ctx := context.Background()
 
 	var callCount int
-	listener := ListenerFunc(func(ctx context.Context, payload any) error {
+	listener := ListenerFunc(func(_ context.Context, _ any) error {
 		callCount++
 		return nil
 	})
@@ -109,12 +109,12 @@ func TestEventEmitter_GlobMatching(t *testing.T) {
 
 	var specificCalled, globCalled bool
 
-	ee.AddListener("test.event", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("test.event", ListenerFunc(func(_ context.Context, _ any) error {
 		specificCalled = true
 		return nil
 	}))
 
-	ee.AddListener("test.*", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("test.*", ListenerFunc(func(_ context.Context, _ any) error {
 		globCalled = true
 		return nil
 	}))
@@ -141,7 +141,7 @@ func TestEventEmitter_Once(t *testing.T) {
 	ctx := context.Background()
 
 	var callCount int
-	ee.Once("test", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.Once("test", ListenerFunc(func(_ context.Context, _ any) error {
 		callCount++
 		return nil
 	}))
@@ -163,12 +163,12 @@ func TestEventEmitter_ErrBreak(t *testing.T) {
 
 	var firstCalled, secondCalled bool
 
-	ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error {
 		firstCalled = true
 		return ErrBreak
 	}))
 
-	ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error {
 		secondCalled = true
 		return nil
 	}))
@@ -185,7 +185,7 @@ func TestEventEmitter_ErrBreak(t *testing.T) {
 
 func TestEventEmitter_ErrorHandler(t *testing.T) {
 	var errorCaught error
-	errorHandler := func(event string, err error) {
+	errorHandler := func(_ string, err error) {
 		errorCaught = err
 	}
 
@@ -196,7 +196,7 @@ func TestEventEmitter_ErrorHandler(t *testing.T) {
 	ctx := context.Background()
 
 	dummyErr := errors.New("dummy error")
-	ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error {
 		return dummyErr
 	}))
 
@@ -213,8 +213,8 @@ func TestEventEmitter_RemoveAllListeners(t *testing.T) {
 		t.Fatalf("failed to create event emitter: %v", err)
 	}
 
-	ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error { return nil }))
-	ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error { return nil }))
+	ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error { return nil }))
+	ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error { return nil }))
 
 	if ee.ListenerCount("test") != 2 {
 		t.Errorf("expected 2 listeners, got %d", ee.ListenerCount("test"))
@@ -239,7 +239,7 @@ func TestGenericOn(t *testing.T) {
 	}
 
 	var receivedData string
-	On[MyEvent](ee, "test", func(ctx context.Context, payload *MyEvent) error {
+	On[MyEvent](ee, "test", func(_ context.Context, payload *MyEvent) error {
 		receivedData = payload.Data
 		return nil
 	})
@@ -268,12 +268,12 @@ func TestEventEmitter_StopOnError_False(t *testing.T) {
 	var callCount int
 	errDummy := errors.New("dummy error")
 
-	ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error {
 		callCount++
 		return errDummy
 	}))
 
-	ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error {
 		callCount++
 		return nil
 	}))
@@ -291,7 +291,7 @@ func TestEventEmitter_Once_WithErrors(t *testing.T) {
 	t.Run("once with ErrBreak", func(t *testing.T) {
 		ee, _ := NewSync(NewOptions())
 		var callCount int
-		ee.Once("test", ListenerFunc(func(ctx context.Context, payload any) error {
+		ee.Once("test", ListenerFunc(func(_ context.Context, _ any) error {
 			callCount++
 			return ErrBreak
 		}))
@@ -305,7 +305,7 @@ func TestEventEmitter_Once_WithErrors(t *testing.T) {
 	t.Run("once with error and stopOnError true", func(t *testing.T) {
 		ee, _ := NewSync(NewOptions(WithStopOnError(true)))
 		var callCount int
-		ee.Once("test", ListenerFunc(func(ctx context.Context, payload any) error {
+		ee.Once("test", ListenerFunc(func(_ context.Context, _ any) error {
 			callCount++
 			return errors.New("fail")
 		}))
@@ -319,7 +319,7 @@ func TestEventEmitter_Once_WithErrors(t *testing.T) {
 	t.Run("once with error and stopOnError false", func(t *testing.T) {
 		ee, _ := NewSync(NewOptions(WithStopOnError(false)))
 		var callCount int
-		ee.Once("test", ListenerFunc(func(ctx context.Context, payload any) error {
+		ee.Once("test", ListenerFunc(func(_ context.Context, _ any) error {
 			callCount++
 			return errors.New("fail")
 		}))
@@ -337,7 +337,7 @@ func TestEventEmitter_InvalidGlob(t *testing.T) {
 
 	var called bool
 	// Invalid pattern according to path.Match: a [ with no closing ]
-	ee.AddListener("[", ListenerFunc(func(ctx context.Context, payload any) error {
+	ee.AddListener("[", ListenerFunc(func(_ context.Context, _ any) error {
 		called = true
 		return nil
 	}))
@@ -358,7 +358,7 @@ func TestEventEmitter_Once_Unsubscribe(t *testing.T) {
 	ctx := context.Background()
 
 	var callCount int
-	unsubscribe := ee.Once("test", ListenerFunc(func(ctx context.Context, payload any) error {
+	unsubscribe := ee.Once("test", ListenerFunc(func(_ context.Context, _ any) error {
 		callCount++
 		return nil
 	}))
@@ -373,7 +373,7 @@ func TestEventEmitter_Once_Unsubscribe(t *testing.T) {
 
 func TestEventEmitter_UnsubscribeTwice(t *testing.T) {
 	ee, _ := NewSync(NewOptions())
-	unsubscribe := ee.AddListener("test", ListenerFunc(func(ctx context.Context, payload any) error { return nil }))
+	unsubscribe := ee.AddListener("test", ListenerFunc(func(_ context.Context, _ any) error { return nil }))
 	
 	unsubscribe()
 	if ee.ListenerCount("test") != 0 {
@@ -384,7 +384,7 @@ func TestEventEmitter_UnsubscribeTwice(t *testing.T) {
 	unsubscribe()
 }
 
-func TestEventEmitter_RemoveAllListeners_NoExist(t *testing.T) {
+func TestEventEmitter_RemoveAllListeners_NoExist(_ *testing.T) {
 	ee, _ := NewSync(NewOptions())
 	// Should not panic
 	ee.RemoveAllListeners("non-existent")

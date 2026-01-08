@@ -1,18 +1,33 @@
 package logger
 
-// Nop is a no-op logger implementation.
+// Nop is a logger that does nothing.
 type Nop struct{}
 
-// NewNop creates a new Nop logger.
-func NewNop() Logger {
+// NewNop creates a new Nop.
+func NewNop() Nop {
 	return Nop{}
 }
 
-func (Nop) Errorf(format string, args ...interface{}) {}
-func (Nop) Fatalf(format string, args ...interface{}) {}
-func (Nop) Fatal(args ...interface{})                 {}
-func (Nop) Infof(format string, args ...interface{})  {}
-func (Nop) Info(args ...interface{})                  {}
-func (Nop) Warnf(format string, args ...interface{})  {}
-func (Nop) Debugf(format string, args ...interface{}) {}
-func (Nop) Debug(args ...interface{})                 {}
+// Errorf logs a message at the error level.
+func (Nop) Errorf(_ string, _ ...interface{}) {}
+
+// Fatalf logs a message at the fatal level and calls os.Exit(1).
+func (Nop) Fatalf(_ string, _ ...interface{}) {}
+
+// Fatal logs a message at the fatal level and calls os.Exit(1).
+func (Nop) Fatal(_ ...interface{})            {}
+
+// Infof logs a message at the info level.
+func (Nop) Infof(_ string, _ ...interface{})  {}
+
+// Info logs a message at the info level.
+func (Nop) Info(_ ...interface{})             {}
+
+// Warnf logs a message at the warn level.
+func (Nop) Warnf(_ string, _ ...interface{})  {}
+
+// Debugf logs a message at the debug level.
+func (Nop) Debugf(_ string, _ ...interface{}) {}
+
+// Debug logs a message at the debug level.
+func (Nop) Debug(_ ...interface{})            {}

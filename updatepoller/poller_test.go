@@ -18,7 +18,7 @@ type mockClient struct {
 	getUpdatesFunc func(ctx context.Context, body client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error)
 }
 
-func (m *mockClient) GetUpdatesWithResponse(ctx context.Context, body client.GetUpdatesJSONRequestBody, reqEditors ...client.RequestEditorFn) (*client.GetUpdatesResponse, error) {
+func (m *mockClient) GetUpdatesWithResponse(ctx context.Context, body client.GetUpdatesJSONRequestBody, _ ...client.RequestEditorFn) (*client.GetUpdatesResponse, error) {
 	m.pollCount.Add(1)
 	if m.getUpdatesFunc != nil {
 		return m.getUpdatesFunc(ctx, body)
@@ -39,11 +39,11 @@ type mockOffsetStore struct {
 	offset int
 }
 
-func (m *mockOffsetStore) Load(ctx context.Context) (int, error) {
+func (m *mockOffsetStore) Load(_ context.Context) (int, error) {
 	return m.offset, nil
 }
 
-func (m *mockOffsetStore) Save(ctx context.Context, offset int) error {
+func (m *mockOffsetStore) Save(_ context.Context, offset int) error {
 	m.offset = offset
 	return nil
 }
@@ -140,7 +140,7 @@ func TestPoller_StopTimeout(t *testing.T) {
 	store := &mockOffsetStore{}
 
 	// Create an API that takes longer than the stop timeout
-	tgClient.getUpdatesFunc = func(ctx context.Context, body client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
+	tgClient.getUpdatesFunc = func(_ context.Context, _ client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
 		time.Sleep(50 * time.Millisecond)
 		return &client.GetUpdatesResponse{
 			HTTPResponse: &http.Response{StatusCode: http.StatusOK},

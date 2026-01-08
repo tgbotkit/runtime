@@ -6,44 +6,52 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// Zerolog is a logger implementation that uses rs/zerolog.
+// Zerolog is a logger that uses the zerolog package.
 type Zerolog struct {
-	logger zerolog.Logger
+	l zerolog.Logger
 }
 
-// NewZerolog creates a new Zerolog logger.
-func NewZerolog(l zerolog.Logger) Logger {
-	return &Zerolog{logger: l}
+// NewZerolog creates a new Zerolog.
+func NewZerolog(l zerolog.Logger) *Zerolog {
+	return &Zerolog{l: l}
 }
 
+// Errorf logs a message at the error level.
 func (z *Zerolog) Errorf(format string, args ...interface{}) {
-	z.logger.Error().Msg(fmt.Sprintf(format, args...))
+	z.l.Error().Msgf(format, args...)
 }
 
+// Fatalf logs a message at the fatal level and calls os.Exit(1).
 func (z *Zerolog) Fatalf(format string, args ...interface{}) {
-	z.logger.Fatal().Msg(fmt.Sprintf(format, args...))
+	z.l.Fatal().Msgf(format, args...)
 }
 
+// Fatal logs a message at the fatal level and calls os.Exit(1).
 func (z *Zerolog) Fatal(args ...interface{}) {
-	z.logger.Fatal().Msg(fmt.Sprint(args...))
+	z.l.Fatal().Msg(fmt.Sprint(args...))
 }
 
+// Infof logs a message at the info level.
 func (z *Zerolog) Infof(format string, args ...interface{}) {
-	z.logger.Info().Msg(fmt.Sprintf(format, args...))
+	z.l.Info().Msgf(format, args...)
 }
 
+// Info logs a message at the info level.
 func (z *Zerolog) Info(args ...interface{}) {
-	z.logger.Info().Msg(fmt.Sprint(args...))
+	z.l.Info().Msg(fmt.Sprint(args...))
 }
 
+// Warnf logs a message at the warn level.
 func (z *Zerolog) Warnf(format string, args ...interface{}) {
-	z.logger.Warn().Msg(fmt.Sprintf(format, args...))
+	z.l.Warn().Msgf(format, args...)
 }
 
+// Debugf logs a message at the debug level.
 func (z *Zerolog) Debugf(format string, args ...interface{}) {
-	z.logger.Debug().Msg(fmt.Sprintf(format, args...))
+	z.l.Debug().Msgf(format, args...)
 }
 
+// Debug logs a message at the debug level.
 func (z *Zerolog) Debug(args ...interface{}) {
-	z.logger.Debug().Msg(fmt.Sprint(args...))
+	z.l.Debug().Msg(fmt.Sprint(args...))
 }

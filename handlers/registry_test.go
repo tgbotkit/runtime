@@ -21,7 +21,7 @@ func TestRegistry(t *testing.T) {
 	t.Run("OnUpdate", func(t *testing.T) {
 		var called bool
 		var payload *events.UpdateEvent
-		handler := func(ctx context.Context, event *events.UpdateEvent) error {
+		handler := func(_ context.Context, event *events.UpdateEvent) error {
 			called = true
 			payload = event
 			return nil
@@ -45,7 +45,7 @@ func TestRegistry(t *testing.T) {
 	t.Run("OnMessage", func(t *testing.T) {
 		var called bool
 		var payload *events.MessageEvent
-		handler := func(ctx context.Context, event *events.MessageEvent) error {
+		handler := func(_ context.Context, event *events.MessageEvent) error {
 			called = true
 			payload = event
 			return nil
@@ -69,7 +69,7 @@ func TestRegistry(t *testing.T) {
 	t.Run("OnMessageType", func(t *testing.T) {
 		var called bool
 		var payload *events.MessageEvent
-		handler := func(ctx context.Context, event *events.MessageEvent) error {
+		handler := func(_ context.Context, event *events.MessageEvent) error {
 			called = true
 			payload = event
 			return nil
@@ -100,7 +100,7 @@ func TestRegistry(t *testing.T) {
 	t.Run("OnCommand", func(t *testing.T) {
 		var called bool
 		var payload *events.CommandEvent
-		handler := func(ctx context.Context, event *events.CommandEvent) error {
+		handler := func(_ context.Context, event *events.CommandEvent) error {
 			called = true
 			payload = event
 			return nil

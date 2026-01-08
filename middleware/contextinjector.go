@@ -1,3 +1,4 @@
+// Package middleware provides various middleware implementations for the bot's event emitter.
 package middleware
 
 import (

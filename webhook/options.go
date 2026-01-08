@@ -1,3 +1,4 @@
+// Package webhook provides an implementation of UpdateSource using Telegram webhooks.
 package webhook
 
 import "github.com/tgbotkit/client"

@@ -1,3 +1,4 @@
+// Package handlers provides a type-safe way to register and manage event handlers.
 package handlers
 
 import (

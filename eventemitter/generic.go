@@ -2,6 +2,7 @@ package eventemitter
 
 import "context"
 
+// TypedListener is a generic listener function that accepts a specific payload type.
 type TypedListener[T any] func(ctx context.Context, payload *T) error
 
 // On registers a typed handler for a specific event.

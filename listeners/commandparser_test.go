@@ -19,7 +19,7 @@ func TestCommandParser(t *testing.T) {
 
 	t.Run("parses simple command", func(t *testing.T) {
 		var receivedEvent *events.CommandEvent
-		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
 			if e, ok := payload.(*events.CommandEvent); ok {
 				receivedEvent = e
 			}
@@ -52,7 +52,7 @@ func TestCommandParser(t *testing.T) {
 		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
 		parser := listeners.CommandParser(ee, botName)
 		var receivedEvent *events.CommandEvent
-		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
 			receivedEvent = payload.(*events.CommandEvent)
 			return nil
 		}))
@@ -78,7 +78,7 @@ func TestCommandParser(t *testing.T) {
 		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
 		parser := listeners.CommandParser(ee, botName)
 		var receivedEvent *events.CommandEvent
-		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
 			receivedEvent = payload.(*events.CommandEvent)
 			return nil
 		}))
@@ -104,7 +104,7 @@ func TestCommandParser(t *testing.T) {
 		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
 		parser := listeners.CommandParser(ee, botName)
 		var called bool
-		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
+		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
 			called = true
 			return nil
 		}))
