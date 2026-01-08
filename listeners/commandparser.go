@@ -9,6 +9,7 @@ import (
 	"github.com/tgbotkit/runtime/messagetype"
 )
 
+// CommandParser returns a listener that detects bot commands in text messages and emits OnCommand events.
 func CommandParser(emitter eventemitter.EventEmitter, botName string) eventemitter.Listener {
 	return eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
 		// We only care about MessageEvent with text.

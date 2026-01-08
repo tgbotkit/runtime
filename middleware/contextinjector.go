@@ -7,6 +7,7 @@ import (
 	"github.com/tgbotkit/runtime/eventemitter"
 )
 
+// ContextInjector returns a middleware that injects BotContext into the request context.
 func ContextInjector(bot botcontext.BotContext) eventemitter.Middleware {
 	return eventemitter.MiddlewareFunc(func(next eventemitter.Listener) eventemitter.Listener {
 		return eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {

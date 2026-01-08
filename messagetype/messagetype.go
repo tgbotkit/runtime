@@ -1,3 +1,4 @@
+// Package messagetype provides constants and utilities for identifying the type of a Telegram message.
 package messagetype
 
 // MessageType used for message routing.
@@ -5,7 +6,7 @@ type MessageType string
 
 // Constants for message types, derived from the client.Message struct.
 const (
-	// Standard content message types
+	// Standard content message types.
 	Text      MessageType = "text"
 	Animation MessageType = "animation"
 	Audio     MessageType = "audio"
@@ -27,7 +28,7 @@ const (
 	PaidMedia MessageType = "paid_media"
 	Giveaway  MessageType = "giveaway"
 
-	// Service message types
+	// Service message types.
 	BoostAdded                   MessageType = "boost_added"
 	ChatBackgroundSet            MessageType = "chat_background_set"
 	ChatShared                   MessageType = "chat_shared"
@@ -77,6 +78,6 @@ const (
 	WebAppData                   MessageType = "web_app_data"
 	WriteAccessAllowed           MessageType = "write_access_allowed"
 
-	// Unknown message type
+	// Unknown message type.
 	Unknown MessageType = "unknown"
 )

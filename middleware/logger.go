@@ -7,6 +7,7 @@ import (
 	"github.com/tgbotkit/runtime/logger"
 )
 
+// Logger returns a middleware that logs event processing.
 func Logger(l logger.Logger) eventemitter.Middleware {
 	return eventemitter.MiddlewareFunc(func(next eventemitter.Listener) eventemitter.Listener {
 		return eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {

@@ -1,3 +1,4 @@
+// Package events defines the events emitted by the bot and their associated payload types.
 package events
 
 // Constants for event names.

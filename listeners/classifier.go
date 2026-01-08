@@ -1,3 +1,4 @@
+// Package listeners provides core event listeners for the bot, such as update classification and command parsing.
 package listeners
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/tgbotkit/runtime/messagetype"
 )
 
+// Classifier returns a listener that analyzes incoming updates and emits more specific events based on the update content.
 func Classifier(emitter eventemitter.EventEmitter) eventemitter.Listener {
 	return eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
 		if event, ok := payload.(*events.UpdateEvent); ok {

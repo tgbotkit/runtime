@@ -8,6 +8,7 @@ import (
 	"github.com/tgbotkit/runtime/logger"
 )
 
+// Recoverer returns a middleware that recovers from panics in listeners.
 func Recoverer(log logger.Logger) eventemitter.Middleware {
 	return eventemitter.MiddlewareFunc(func(next eventemitter.Listener) eventemitter.Listener {
 		return eventemitter.ListenerFunc(func(ctx context.Context, payload any) (err error) {

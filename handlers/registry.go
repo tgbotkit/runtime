@@ -9,8 +9,8 @@ import (
 	"github.com/tgbotkit/runtime/messagetype"
 )
 
-// HandlerRegistry defines the interface for managing event subscriptions.
-type HandlerRegistry interface {
+// RegistryInterface defines the interface for managing event subscriptions.
+type RegistryInterface interface {
 	OnUpdate(handler UpdateHandler) eventemitter.UnsubscribeFunc
 	OnMessage(handler MessageHandler) eventemitter.UnsubscribeFunc
 	OnMessageType(t messagetype.MessageType, handler MessageHandler) eventemitter.UnsubscribeFunc

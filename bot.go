@@ -21,7 +21,7 @@ import (
 // Bot is the main bot structure.
 type Bot struct {
 	opts     Options
-	registry *handlers.Registry
+	registry handlers.RegistryInterface
 }
 
 // New creates a new Bot instance with the given options.
@@ -58,13 +58,13 @@ func New(opts Options) (*Bot, error) {
 
 	botName, err := loadBotName(opts.client)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load bot name: %w", err)
 	}
 
 	bot := &Bot{
 		opts: opts,
+		registry: handlers.NewRegistry(opts.eventEmitter, opts.logger),
 	}
-	bot.registry = handlers.NewRegistry(opts.eventEmitter, opts.logger)
 
 	// Register internal middlewares
 	opts.eventEmitter.Use("*", middleware.ContextInjector(bot))
@@ -115,7 +115,7 @@ func (b *Bot) Logger() logger.Logger {
 }
 
 // Handlers returns the bot's handler registry.
-func (b *Bot) Handlers() handlers.HandlerRegistry {
+func (b *Bot) Handlers() handlers.RegistryInterface {
 	return b.registry
 }
 

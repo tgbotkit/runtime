@@ -1,3 +1,4 @@
+// Package logger defines a common logging interface and provides implementations for various logging libraries.
 package logger
 
 // Logger is an interface for logging.

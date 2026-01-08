@@ -1,3 +1,4 @@
+// Package updatepoller provides a long-polling mechanism for receiving updates from the Telegram Bot API.
 package updatepoller
 
 import (

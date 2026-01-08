@@ -1,3 +1,4 @@
+// Package botcontext provides a mechanism to embed and retrieve bot-specific context (Client, EventEmitter, Logger) within a standard context.Context.
 package botcontext
 
 import (
