@@ -3,6 +3,7 @@ package runtime_test
 import (
 	"context"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -97,9 +98,9 @@ func TestBot_Run(t *testing.T) {
 	ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
 	
 	// Track event emission
-	var eventReceived bool
+	var eventReceived atomic.Bool
 	ee.AddListener(events.OnUpdate, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
-		eventReceived = true
+		eventReceived.Store(true)
 		return nil
 	}))
 
@@ -128,7 +129,7 @@ func TestBot_Run(t *testing.T) {
 	// Give it some time to process
 	time.Sleep(50 * time.Millisecond)
 
-	assert.True(t, eventReceived, "OnUpdate event should have been emitted")
+	assert.True(t, eventReceived.Load(), "OnUpdate event should have been emitted")
 
 	// Cancel context to stop Run
 	cancel()
