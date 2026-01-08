@@ -2,8 +2,41 @@ version: "2"
 
 run:
   timeout: 5m
+  tests: false
 
 linters:
+  disable-all: true
   enable:
+    - errcheck
     - revive
+    - govet
+    - staticcheck
+    - gocyclo
+    - dupl
+    - gosec
+    - forbidigo
     - bodyclose
+  settings:
+    gocyclo:
+      min-complexity: 100
+  exclusions:
+    rules:
+      # Disable all linters for tests
+      - path: ".*_test\\.go"
+        linters:
+          - "*"
+      # Run some linter only for test files by excluding its issues for everything else.
+      - path-except: ".*_test\\.go"
+        linters:
+          - forbidigo
+      # Exclude false positive for secret token header name.
+      - path: "webhook/webhook\\.go"
+        text: "G101: Potential hardcoded credentials"
+      # Exclude gosec warning for simple examples.
+      - path: "examples/.*"
+        linters:
+          - gosec
+
+formatters:
+  enable:
+    - goimports
