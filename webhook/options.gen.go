@@ -15,6 +15,8 @@ func NewOptions(
 
 	// Setting defaults from field tag (if present)
 
+	o.bufferSize = 100
+
 	for _, opt := range options {
 		opt(&o)
 	}
@@ -31,6 +33,10 @@ func WithUrl(opt string) OptOptionsSetter {
 
 func WithClient(opt client.ClientWithResponsesInterface) OptOptionsSetter {
 	return func(o *Options) { o.client = opt }
+}
+
+func WithBufferSize(opt int) OptOptionsSetter {
+	return func(o *Options) { o.bufferSize = opt }
 }
 
 func (o *Options) Validate() error {

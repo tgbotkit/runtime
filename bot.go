@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime/botcontext"
 	"github.com/tgbotkit/runtime/eventemitter"
@@ -25,6 +24,8 @@ type Bot struct {
 	registry handlers.RegistryInterface
 }
 
+var _ botcontext.BotContext = (*Bot)(nil)
+
 // New creates a new Bot instance with the given options.
 func New(opts Options) (*Bot, error) {
 	if err := opts.Validate(); err != nil {
@@ -35,7 +36,7 @@ func New(opts Options) (*Bot, error) {
 		var err error
 		opts.eventEmitter, err = eventemitter.NewSync(eventemitter.NewOptions())
 		if err != nil {
-			return nil, fmt.Errorf("failed to create default event emitter: %w", err)
+			return nil, fmt.Errorf("create default event emitter: %w", err)
 		}
 	}
 
@@ -48,18 +49,18 @@ func New(opts Options) (*Bot, error) {
 			client.ServerUrlTelegramBotAPIEndpointSubstituteBotTokenWithYourBotTokenBotTokenVariable(opts.botToken),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create server URL: %w", err)
+			return nil, fmt.Errorf("create server URL: %w", err)
 		}
 
 		opts.client, err = client.NewClientWithResponses(serverURL)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create API client: %w", err)
+			return nil, fmt.Errorf("create API client: %w", err)
 		}
 	}
 
 	botName, err := loadBotName(opts.client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load bot name: %w", err)
+		return nil, fmt.Errorf("load bot name: %w", err)
 	}
 
 	bot := &Bot{
@@ -92,10 +93,25 @@ func (b *Bot) Run(ctx context.Context) error {
 			updatepoller.WithLogger(b.opts.logger),
 		))
 		if err != nil {
-			return fmt.Errorf("failed to create default poller: %w", err)
+			return fmt.Errorf("create default poller: %w", err)
 		}
 		b.opts.updateSource = poller
 	}
+
+	startCtx, startCancel := context.WithTimeout(ctx, 30*time.Second)
+	err := b.opts.updateSource.Start(startCtx)
+	startCancel()
+	if err != nil {
+		return fmt.Errorf("start update source: %w", err)
+	}
+
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := b.opts.updateSource.Stop(stopCtx); err != nil {
+			b.Logger().Errorf("stop update source: %v", err)
+		}
+	}()
 
 	return b.receiveLoop(ctx)
 }
@@ -125,7 +141,7 @@ func loadBotName(api client.ClientWithResponsesInterface) (string, error) {
 	// It is important to do it once at startup
 	me, err := api.GetMeWithResponse(context.Background())
 	if err != nil {
-		return "", fmt.Errorf("failed to get bot info: %w", err)
+		return "", fmt.Errorf("get bot info: %w", err)
 	}
 	if me.JSON200 == nil || me.JSON200.Result.Username == nil {
 		return "", fmt.Errorf("could not retrieve bot username from GetMe response")
@@ -147,7 +163,7 @@ func (b *Bot) receiveLoop(ctx context.Context) error {
 				// Channel closed, graceful shutdown.
 				return nil
 			}
-			zerolog.Ctx(ctx).Debug().Interface("update", update).Msg("got update")
+			b.Logger().Debugf("got update: %v", update.UpdateId)
 			b.opts.eventEmitter.Emit(ctx, events.OnUpdate, &events.UpdateEvent{Update: &update})
 		}
 	}

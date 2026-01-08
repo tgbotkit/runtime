@@ -7,7 +7,8 @@ import "github.com/tgbotkit/client"
 
 // Options is the options for the Webhook handler.
 type Options struct {
-	token  string                              `option:"optional"`
-	url    string                              `option:"optional"`
-	client client.ClientWithResponsesInterface `option:"optional"`
+	token      string                              `option:"optional"`
+	url        string                              `option:"optional"`
+	client     client.ClientWithResponsesInterface `option:"optional"`
+	bufferSize int                                 `option:"optional" default:"100"`
 }

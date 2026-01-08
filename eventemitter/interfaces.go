@@ -10,6 +10,8 @@ type Listener interface {
 // ListenerFunc is an adapter to allow the use of ordinary functions as Listener.
 type ListenerFunc func(ctx context.Context, payload any) error
 
+var _ Listener = ListenerFunc(nil)
+
 // Handle calls f(ctx, payload).
 func (f ListenerFunc) Handle(ctx context.Context, payload any) error {
 	return f(ctx, payload)
@@ -22,6 +24,8 @@ type Middleware interface {
 
 // MiddlewareFunc is an adapter to allow the use of ordinary functions as Middleware.
 type MiddlewareFunc func(next Listener) Listener
+
+var _ Middleware = MiddlewareFunc(nil)
 
 // Handle calls f(next).
 func (f MiddlewareFunc) Handle(next Listener) Listener {

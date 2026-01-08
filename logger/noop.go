@@ -3,6 +3,8 @@ package logger
 // Nop is a logger that does nothing.
 type Nop struct{}
 
+var _ Logger = Nop{}
+
 // NewNop creates a new Nop.
 func NewNop() Nop {
 	return Nop{}

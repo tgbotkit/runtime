@@ -2,6 +2,7 @@ package listeners
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/tgbotkit/runtime/eventemitter"
@@ -16,7 +17,7 @@ func CommandParser(emitter eventemitter.EventEmitter, botName string) eventemitt
 		if event, ok := payload.(*events.MessageEvent); ok && event.Type == messagetype.Text {
 			if err := parseCommand(ctx, emitter, event, botName); err != nil {
 				// Stop propagation if a command was handled.
-				if err == eventemitter.ErrBreak {
+				if errors.Is(err, eventemitter.ErrBreak) {
 					return nil // Don't propagate further, but don't treat as an error.
 				}
 				return err

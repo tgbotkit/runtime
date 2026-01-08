@@ -29,6 +29,9 @@ func WithBotContext(ctx context.Context, bot BotContext) context.Context {
 // FromContext retrieves the BotContext from the context.
 // It returns nil if the BotContext is not found.
 func FromContext(ctx context.Context) BotContext {
-	val, _ := ctx.Value(botContextKey).(BotContext)
+	val, ok := ctx.Value(botContextKey).(BotContext)
+	if !ok {
+		return nil
+	}
 	return val
 }

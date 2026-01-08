@@ -33,11 +33,11 @@ func NewPoller(opts Options) (*Poller, error) {
 	return &Poller{
 		opts:    opts,
 		log:     opts.logger,
-		updates: make(chan client.Update, 100),
+		updates: make(chan client.Update, 1),
 	}, nil
 }
 
-// Start starts the Poller.
+// Start starts the Poller. The context is used only for the startup timeout.
 func (p *Poller) Start(_ context.Context) error {
 	if p.cancel != nil {
 		return nil
@@ -64,7 +64,7 @@ func (p *Poller) Start(_ context.Context) error {
 	return nil
 }
 
-// Stop stops the Poller.
+// Stop stops the Poller. The context is used only for the shutdown timeout.
 func (p *Poller) Stop(ctx context.Context) error {
 	if p.cancel != nil {
 		p.cancel()
@@ -94,7 +94,7 @@ func (p *Poller) poll(ctx context.Context) {
 	offset, err := p.opts.offsetStore.Load(ctx)
 	if err != nil {
 		if ctx.Err() == nil {
-			p.log.Errorf("failed to load offset: %v", err)
+			p.log.Errorf("load offset: %v", err)
 		}
 		return
 	}
@@ -102,14 +102,15 @@ func (p *Poller) poll(ctx context.Context) {
 	resp, err := p.opts.client.GetUpdatesWithResponse(ctx, client.GetUpdatesJSONRequestBody{
 		Offset: &offset,
 	})
-	if err != nil || resp.StatusCode() != http.StatusOK {
-		if err != nil {
-			if ctx.Err() == nil {
-				p.log.Errorf("failed to fetch updates: %v", err)
-			}
-		} else if resp.StatusCode() != http.StatusOK {
-			p.log.Errorf("failed to fetch updates: %s", resp.Status())
+	if err != nil {
+		if ctx.Err() == nil {
+			p.log.Errorf("fetch updates: %v", err)
 		}
+		return
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		p.log.Errorf("fetch updates: %s", resp.Status())
 		return
 	}
 
@@ -129,7 +130,7 @@ func (p *Poller) poll(ctx context.Context) {
 	if len(resp.JSON200.Result) > 0 {
 		if saveErr := p.opts.offsetStore.Save(ctx, offset); saveErr != nil {
 			if ctx.Err() == nil {
-				p.log.Errorf("failed to save offset: %v", saveErr)
+				p.log.Errorf("save offset: %v", saveErr)
 			}
 		}
 	}

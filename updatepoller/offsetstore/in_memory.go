@@ -4,12 +4,16 @@ package offsetstore
 import (
 	"context"
 	"sync/atomic"
+
+	"github.com/tgbotkit/runtime/updatepoller"
 )
 
 // InMemoryOffsetStore is an in-memory implementation of OffsetStore.
 type InMemoryOffsetStore struct {
 	offset int64
 }
+
+var _ updatepoller.OffsetStore = (*InMemoryOffsetStore)(nil)
 
 // NewInMemoryOffsetStore creates a new InMemoryOffsetStore.
 func NewInMemoryOffsetStore(initial int) *InMemoryOffsetStore {

@@ -11,6 +11,8 @@ type Zerolog struct {
 	l zerolog.Logger
 }
 
+var _ Logger = (*Zerolog)(nil)
+
 // NewZerolog creates a new Zerolog.
 func NewZerolog(l zerolog.Logger) *Zerolog {
 	return &Zerolog{l: l}

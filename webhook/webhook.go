@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/rs/zerolog"
 	"github.com/tgbotkit/client"
-	"github.com/tgbotkit/runtime"
+	"github.com/tgbotkit/runtime/botcontext"
 )
 
 const (
@@ -16,13 +15,13 @@ const (
 	HeaderTelegramBotAPISecretToken = "X-Telegram-Bot-Api-Secret-Token"
 )
 
-var _ runtime.UpdateSource = (*Webhook)(nil)
-
 // Webhook implements http.Handler to receive incoming updates via an outgoing webhook.
 type Webhook struct {
 	opts    Options
 	updates chan client.Update
 }
+
+var _ http.Handler = (*Webhook)(nil)
 
 // New creates a new Webhook handler.
 func New(opts Options) (*Webhook, error) {
@@ -31,13 +30,23 @@ func New(opts Options) (*Webhook, error) {
 	}
 	return &Webhook{
 		opts:    opts,
-		updates: make(chan client.Update, 100),
+		updates: make(chan client.Update, opts.bufferSize),
 	}, nil
 }
 
 // UpdateChan returns the updates channel.
 func (h *Webhook) UpdateChan() <-chan client.Update {
 	return h.updates
+}
+
+// Start satisfies the runtime.UpdateSource interface. The context is used only for the startup timeout.
+func (h *Webhook) Start(ctx context.Context) error {
+	return h.SetWebhook(ctx)
+}
+
+// Stop satisfies the runtime.UpdateSource interface. The context is used only for the shutdown timeout.
+func (h *Webhook) Stop(_ context.Context) error {
+	return nil
 }
 
 // SetWebhook sets the outgoing webhook for the bot.
@@ -55,11 +64,11 @@ func (h *Webhook) SetWebhook(ctx context.Context) error {
 
 	resp, err := h.opts.client.SetWebhookWithResponse(ctx, params)
 	if err != nil {
-		return fmt.Errorf("failed to set webhook: %w", err)
+		return fmt.Errorf("set webhook: %w", err)
 	}
 
 	if resp.JSON200 == nil || !bool(resp.JSON200.Ok) {
-		return fmt.Errorf("failed to set webhook: unexpected response: %s", resp.Status())
+		return fmt.Errorf("set webhook: unexpected response: %s", resp.Status())
 	}
 
 	return nil
@@ -87,8 +96,9 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	l := zerolog.Ctx(r.Context())
-	l.Debug().Interface("update", update).Msg("got update")
+	if bc := botcontext.FromContext(r.Context()); bc != nil {
+		bc.Logger().Debugf("got update: %v", update.UpdateId)
+	}
 
 	select {
 	case h.updates <- update:

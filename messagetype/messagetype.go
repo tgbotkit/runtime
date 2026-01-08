@@ -1,8 +1,166 @@
 // Package messagetype provides constants and utilities for identifying the type of a Telegram message.
 package messagetype
 
+import (
+	"github.com/tgbotkit/client"
+)
+
 // MessageType used for message routing.
 type MessageType string
+
+// Detect inspects the message and returns its type.
+func Detect(message *client.Message) MessageType {
+	if message == nil {
+		return Unknown
+	}
+
+	// The order is important: check for specific service messages first,
+	// then for standard content types.
+	switch {
+	// Service messages
+	case message.NewChatMembers != nil:
+		return NewChatMembers
+	case message.LeftChatMember != nil:
+		return LeftChatMember
+	case message.NewChatTitle != nil:
+		return NewChatTitle
+	case message.NewChatPhoto != nil:
+		return NewChatPhoto
+	case message.DeleteChatPhoto != nil:
+		return DeleteChatPhoto
+	case message.GroupChatCreated != nil:
+		return GroupChatCreated
+	case message.SupergroupChatCreated != nil:
+		return SupergroupChatCreated
+	case message.ChannelChatCreated != nil:
+		return ChannelChatCreated
+	case message.MessageAutoDeleteTimerChanged != nil:
+		return MessageAutoDeleteTimerChanged
+	case message.MigrateToChatId != nil:
+		return MigrateToChatID
+	case message.MigrateFromChatId != nil:
+		return MigrateFromChatID
+	case message.PinnedMessage != nil:
+		return PinnedMessage
+	case message.SuccessfulPayment != nil:
+		return SuccessfulPayment
+	case message.RefundedPayment != nil:
+		return RefundedPayment
+	case message.UsersShared != nil:
+		return UsersShared
+	case message.ChatShared != nil:
+		return ChatShared
+	case message.WriteAccessAllowed != nil:
+		return WriteAccessAllowed
+	case message.ProximityAlertTriggered != nil:
+		return ProximityAlertTriggered
+	case message.ForumTopicCreated != nil:
+		return ForumTopicCreated
+	case message.ForumTopicEdited != nil:
+		return ForumTopicEdited
+	case message.ForumTopicClosed != nil:
+		return ForumTopicClosed
+	case message.ForumTopicReopened != nil:
+		return ForumTopicReopened
+	case message.GeneralForumTopicHidden != nil:
+		return GeneralForumTopicHidden
+	case message.GeneralForumTopicUnhidden != nil:
+		return GeneralForumTopicUnhidden
+	case message.VideoChatScheduled != nil:
+		return VideoChatScheduled
+	case message.VideoChatStarted != nil:
+		return VideoChatStarted
+	case message.VideoChatEnded != nil:
+		return VideoChatEnded
+	case message.VideoChatParticipantsInvited != nil:
+		return VideoChatParticipantsInvited
+	case message.WebAppData != nil:
+		return WebAppData
+	case message.BoostAdded != nil:
+		return BoostAdded
+	case message.ChatBackgroundSet != nil:
+		return ChatBackgroundSet
+	case message.ChecklistTasksAdded != nil:
+		return ChecklistTasksAdded
+	case message.ChecklistTasksDone != nil:
+		return ChecklistTasksDone
+	case message.DirectMessagePriceChanged != nil:
+		return DirectMessagePriceChanged
+	case message.Gift != nil:
+		return Gift
+	case message.GiftUpgradeSent != nil:
+		return GiftUpgradeSent
+	case message.GiveawayCompleted != nil:
+		return GiveawayCompleted
+	case message.GiveawayCreated != nil:
+		return GiveawayCreated
+	case message.GiveawayWinners != nil:
+		return GiveawayWinners
+	case message.PaidMessagePriceChanged != nil:
+		return PaidMessagePriceChanged
+	case message.SuggestedPostApprovalFailed != nil:
+		return SuggestedPostApprovalFailed
+	case message.SuggestedPostApproved != nil:
+		return SuggestedPostApproved
+	case message.SuggestedPostDeclined != nil:
+		return SuggestedPostDeclined
+	case message.SuggestedPostPaid != nil:
+		return SuggestedPostPaid
+	case message.SuggestedPostRefunded != nil:
+		return SuggestedPostRefunded
+	case message.UniqueGift != nil:
+		return UniqueGift
+	case message.PassportData != nil:
+		return PassportData
+	case message.ConnectedWebsite != nil:
+		return ConnectedWebsite
+
+	// Standard content types
+	case message.Text != nil:
+		return Text
+	case message.Animation != nil:
+		return Animation
+	case message.Audio != nil:
+		return Audio
+	case message.Document != nil:
+		return Document
+	case message.Photo != nil:
+		return Photo
+	case message.Sticker != nil:
+		return Sticker
+	case message.Story != nil:
+		return Story
+	case message.Video != nil:
+		return Video
+	case message.VideoNote != nil:
+		return VideoNote
+	case message.Voice != nil:
+		return Voice
+	case message.Contact != nil:
+		return Contact
+	case message.Dice != nil:
+		return Dice
+	case message.Game != nil:
+		return Game
+	case message.Poll != nil:
+		return Poll
+	case message.Venue != nil:
+		return Venue
+	case message.Location != nil:
+		return Location
+	case message.Invoice != nil:
+		return Invoice
+	case message.Checklist != nil:
+		return Checklist
+	case message.PaidMedia != nil:
+		return PaidMedia
+	case message.Giveaway != nil:
+		return Giveaway
+
+	default:
+		return Unknown
+	}
+}
 
 // Constants for message types, derived from the client.Message struct.
 const (

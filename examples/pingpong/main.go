@@ -22,7 +22,7 @@ func main() {
 
 	bot, err := runtime.New(runtime.NewOptions(token))
 	if err != nil {
-		log.Fatalf("failed to create bot: %v", err)
+		log.Fatalf("create bot: %v", err)
 	}
 
 	// Register a handler for text message events only

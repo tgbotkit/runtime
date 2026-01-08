@@ -9,7 +9,7 @@ tasks:
   test:
     desc: Run tests
     cmds:
-      - go test -race -v ./...
+      - go test -race -v -timeout 1m ./...
 
   generate:
     desc: Run code generation
@@ -19,6 +19,6 @@ tasks:
   coverage:
     desc: Calculate code coverage
     cmds:
-      - go test -coverprofile=coverage.out ./...
+      - go test -timeout 1m -coverprofile=coverage.out ./...
       - go tool cover -func=coverage.out
 

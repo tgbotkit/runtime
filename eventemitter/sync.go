@@ -65,7 +65,10 @@ func (e *SyncEventEmitter) Once(event string, listener Listener) UnsubscribeFunc
 func (e *SyncEventEmitter) removeListener(event string, entry *listenerEntry) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.internalRemoveListener(event, entry)
+}
 
+func (e *SyncEventEmitter) internalRemoveListener(event string, entry *listenerEntry) {
 	entries := e.listeners[event]
 	for i, existingEntry := range entries {
 		if existingEntry == entry {
@@ -138,9 +141,12 @@ func (e *SyncEventEmitter) Emit(ctx context.Context, event string, payload any) 
 		}
 	}
 
-	// Remove once listeners after execution
-	for _, entry := range toRemove {
-		e.removeListener(entry.Event, entry)
+	if len(toRemove) > 0 {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		for _, entry := range toRemove {
+			e.internalRemoveListener(entry.Event, entry)
+		}
 	}
 }
 

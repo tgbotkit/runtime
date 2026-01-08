@@ -56,7 +56,12 @@ func (m *mockUpdateSource) Start(_ context.Context) error {
 }
 
 func (m *mockUpdateSource) Stop(_ context.Context) error {
-	close(m.ch)
+	select {
+	case <-m.ch:
+		// already closed
+	default:
+		close(m.ch)
+	}
 	return nil
 }
 

@@ -23,14 +23,17 @@ func main() {
 	}
 
 	// Initialize webhook update source
-	wh, _ := webhook.New(webhook.NewOptions())
+	wh, err := webhook.New(webhook.NewOptions())
+	if err != nil {
+		log.Fatalf("create webhook: %v", err)
+	}
 
 	bot, err := runtime.New(runtime.NewOptions(
 		token,
 		runtime.WithUpdateSource(wh),
 	))
 	if err != nil {
-		log.Fatalf("failed to create bot: %v", err)
+		log.Fatalf("create bot: %v", err)
 	}
 
 	// Register a handler for text message events only
