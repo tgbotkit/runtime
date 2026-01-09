@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/metalagman/appkit/lifecycle"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime/logger"
 )
@@ -21,6 +22,8 @@ type Poller struct {
 
 	updates chan client.Update
 }
+
+var _ lifecycle.Lifecycle = (*Poller)(nil)
 
 // NewPoller creates a new Poller instance with the given options.
 func NewPoller(opts Options) (*Poller, error) {

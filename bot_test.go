@@ -142,20 +142,3 @@ func TestBot_Run(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
-func TestBot_Run_SourceClose(t *testing.T) {
-	cl := &mockClient{}
-	us := &mockUpdateSource{ch: make(chan client.Update)}
-	close(us.ch) // Immediately close channel
-
-	opts := runtime.NewOptions(
-		"test-token",
-		runtime.WithClient(cl),
-		runtime.WithUpdateSource(us),
-	)
-
-	bot, err := runtime.New(opts)
-	assert.NoError(t, err)
-
-	err = bot.Run(context.Background())
-	assert.NoError(t, err, "Run should return nil when update channel is closed")
-}

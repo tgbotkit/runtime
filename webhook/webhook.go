@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/metalagman/appkit/lifecycle"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime/botcontext"
 )
@@ -22,6 +23,7 @@ type Webhook struct {
 }
 
 var _ http.Handler = (*Webhook)(nil)
+var _ lifecycle.Lifecycle = (*Webhook)(nil)
 
 // New creates a new Webhook handler.
 func New(opts Options) (*Webhook, error) {
@@ -40,12 +42,12 @@ func (h *Webhook) UpdateChan() <-chan client.Update {
 	return h.updates
 }
 
-// Start satisfies the runtime.UpdateSource interface. The context is used only for the startup timeout.
+// Start satisfies the lifecycle.Lifecycle interface. The context is used only for the startup timeout.
 func (h *Webhook) Start(ctx context.Context) error {
 	return h.SetWebhook(ctx)
 }
 
-// Stop satisfies the runtime.UpdateSource interface. The context is used only for the shutdown timeout.
+// Stop satisfies the lifecycle.Lifecycle interface. The context is used only for the shutdown timeout.
 func (h *Webhook) Stop(_ context.Context) error {
 	return nil
 }

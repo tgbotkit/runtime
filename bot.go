@@ -16,6 +16,7 @@ import (
 	"github.com/tgbotkit/runtime/middleware"
 	"github.com/tgbotkit/runtime/updatepoller"
 	"github.com/tgbotkit/runtime/updatepoller/offsetstore"
+	"golang.org/x/sync/errgroup"
 )
 
 // Bot is the main bot structure.
@@ -85,44 +86,39 @@ func New(opts Options) (*Bot, error) {
 func (b *Bot) Run(ctx context.Context) error {
 	ctx = botcontext.WithBotContext(ctx, b)
 
-	// init default update source if not provided
 	if b.opts.updateSource == nil {
-		poller, err := updatepoller.NewPoller(updatepoller.NewOptions(
-			b.opts.client,
-			updatepoller.WithOffsetStore(offsetstore.NewInMemoryOffsetStore(0)),
-			updatepoller.WithPollingInterval(time.Second),
-			updatepoller.WithLogger(b.opts.logger),
-		))
-		if err != nil {
-			return fmt.Errorf("create default poller: %w", err)
+		if err := b.initDefaultPoller(); err != nil {
+			return err
 		}
-
-		b.opts.updateSource = poller
 	}
 
-	const startTimeout = 30 * time.Second
+	g, ctx := errgroup.WithContext(ctx)
 
-	startCtx, startCancel := context.WithTimeout(ctx, startTimeout)
-	err := b.opts.updateSource.Start(startCtx)
+	g.Go(func() error {
+		return ToRunnable(b.opts.updateSource).Run(ctx)
+	})
 
-	startCancel()
+	g.Go(func() error {
+		return b.receiveLoop(ctx)
+	})
 
+	return g.Wait()
+}
+
+func (b *Bot) initDefaultPoller() error {
+	poller, err := updatepoller.NewPoller(updatepoller.NewOptions(
+		b.opts.client,
+		updatepoller.WithOffsetStore(offsetstore.NewInMemoryOffsetStore(0)),
+		updatepoller.WithPollingInterval(time.Second),
+		updatepoller.WithLogger(b.opts.logger),
+	))
 	if err != nil {
-		return fmt.Errorf("start update source: %w", err)
+		return fmt.Errorf("create default poller: %w", err)
 	}
 
-	defer func() {
-		const stopTimeout = 5 * time.Second
+	b.opts.updateSource = poller
 
-		stopCtx, cancel := context.WithTimeout(context.Background(), stopTimeout)
-		defer cancel()
-
-		if err := b.opts.updateSource.Stop(stopCtx); err != nil {
-			b.Logger().Errorf("stop update source: %v", err)
-		}
-	}()
-
-	return b.receiveLoop(ctx)
+	return nil
 }
 
 // Client returns the underlying Telegram Bot API client.
@@ -172,8 +168,9 @@ func (b *Bot) receiveLoop(ctx context.Context) error {
 			return ctx.Err()
 		case update, ok := <-ch:
 			if !ok {
-				// Channel closed, graceful shutdown.
-				return nil
+				// Channel closed. Wait for context cancellation.
+				<-ctx.Done()
+				return ctx.Err()
 			}
 
 			b.Logger().Debugf("got update: %v", update.UpdateId)
