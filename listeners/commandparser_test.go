@@ -41,7 +41,7 @@ func TestCommandParser(t *testing.T) {
 		}
 
 		err := parser.Handle(context.Background(), event)
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, eventemitter.ErrBreak)
 		assert.NotNil(t, receivedEvent)
 		assert.Equal(t, "start", receivedEvent.Command)
 		assert.Equal(t, "", receivedEvent.Args)
@@ -68,7 +68,7 @@ func TestCommandParser(t *testing.T) {
 		event := &events.MessageEvent{Message: msg, Type: messagetype.Text}
 
 		err := parser.Handle(context.Background(), event)
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, eventemitter.ErrBreak)
 		assert.NotNil(t, receivedEvent)
 		assert.Equal(t, "echo", receivedEvent.Command)
 		assert.Equal(t, "hello world", receivedEvent.Args)
@@ -94,7 +94,7 @@ func TestCommandParser(t *testing.T) {
 		event := &events.MessageEvent{Message: msg, Type: messagetype.Text}
 
 		err := parser.Handle(context.Background(), event)
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, eventemitter.ErrBreak)
 		assert.NotNil(t, receivedEvent)
 		assert.Equal(t, "start", receivedEvent.Command)
 		assert.Equal(t, "args", receivedEvent.Args)
@@ -137,4 +137,43 @@ func TestCommandParser(t *testing.T) {
 		err := parser.Handle(context.Background(), "string")
 		assert.NoError(t, err)
 	})
+}
+
+func TestCommandParser_StopsOnErrBreakInEmitterChain(t *testing.T) {
+	ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
+	botName := "mybot"
+
+	ee.AddListener(events.OnMessage, listeners.CommandParser(ee, botName))
+
+	var commandHandled bool
+	ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
+		_, ok := payload.(*events.CommandEvent)
+		commandHandled = ok
+
+		return nil
+	}))
+
+	var afterParserCalled bool
+	ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
+		afterParserCalled = true
+
+		return nil
+	}))
+
+	text := "/start"
+	msg := &client.Message{
+		MessageId: 1,
+		Text:      &text,
+		Entities: &[]client.MessageEntity{
+			{Type: "bot_command", Offset: 0, Length: 6},
+		},
+	}
+
+	ee.Emit(context.Background(), events.OnMessage, &events.MessageEvent{
+		Message: msg,
+		Type:    messagetype.Text,
+	})
+
+	assert.True(t, commandHandled)
+	assert.False(t, afterParserCalled)
 }

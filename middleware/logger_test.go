@@ -65,4 +65,25 @@ func TestLoggerMiddleware(t *testing.T) {
 			t.Error("expected Errorf to be called")
 		}
 	})
+
+	t.Run("errbreak", func(t *testing.T) {
+		l := &mockLogger{}
+		mw := Logger(l)
+
+		next := eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
+			return eventemitter.ErrBreak
+		})
+
+		err := mw.Handle(next).Handle(context.Background(), "test")
+		if !errors.Is(err, eventemitter.ErrBreak) {
+			t.Fatalf("expected ErrBreak, got %v", err)
+		}
+
+		if !l.debugfCalled {
+			t.Error("expected Debugf to be called")
+		}
+		if l.errorfCalled {
+			t.Error("expected Errorf not to be called for ErrBreak")
+		}
+	})
 }

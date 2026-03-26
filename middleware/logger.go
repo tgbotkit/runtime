@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/logger"
@@ -14,7 +15,7 @@ func Logger(l logger.Logger) eventemitter.Middleware {
 			l.Debugf("handling event: %T", payload)
 
 			err := next.Handle(ctx, payload)
-			if err != nil {
+			if err != nil && !errors.Is(err, eventemitter.ErrBreak) {
 				l.Errorf("error handling event %T: %v", payload, err)
 			}
 
