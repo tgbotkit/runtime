@@ -4,10 +4,13 @@
   },
   "general": {
     "previewFeatures": true,
-    "disableAutoUpdate": true
+    "enableAutoUpdate": false
   },
   "context": {
-    "fileName": ["AGENTS.md", "GEMINI.md"]
+    "fileName": [
+      "AGENTS.md",
+      "GEMINI.md"
+    ]
   },
   "tools": {
     "sandbox": false,
