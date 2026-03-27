@@ -141,4 +141,3 @@ func TestBot_Run(t *testing.T) {
 	err = <-errCh
 	assert.ErrorIs(t, err, context.Canceled)
 }
-

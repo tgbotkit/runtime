@@ -105,22 +105,6 @@ func (b *Bot) Run(ctx context.Context) error {
 	return g.Wait()
 }
 
-func (b *Bot) initDefaultPoller() error {
-	poller, err := updatepoller.NewPoller(updatepoller.NewOptions(
-		b.opts.client,
-		updatepoller.WithOffsetStore(offsetstore.NewInMemoryOffsetStore(0)),
-		updatepoller.WithPollingInterval(time.Second),
-		updatepoller.WithLogger(b.opts.logger),
-	))
-	if err != nil {
-		return fmt.Errorf("create default poller: %w", err)
-	}
-
-	b.opts.updateSource = poller
-
-	return nil
-}
-
 // Client returns the underlying Telegram Bot API client.
 func (b *Bot) Client() client.ClientWithResponsesInterface {
 	return b.opts.client
@@ -139,6 +123,22 @@ func (b *Bot) Logger() logger.Logger {
 // Handlers returns the bot's handler registry.
 func (b *Bot) Handlers() handlers.RegistryInterface {
 	return b.registry
+}
+
+func (b *Bot) initDefaultPoller() error {
+	poller, err := updatepoller.NewPoller(updatepoller.NewOptions(
+		b.opts.client,
+		updatepoller.WithOffsetStore(offsetstore.NewInMemoryOffsetStore(0)),
+		updatepoller.WithPollingInterval(time.Second),
+		updatepoller.WithLogger(b.opts.logger),
+	))
+	if err != nil {
+		return fmt.Errorf("create default poller: %w", err)
+	}
+
+	b.opts.updateSource = poller
+
+	return nil
 }
 
 func loadBotName(api client.ClientWithResponsesInterface) (string, error) {
@@ -170,6 +170,7 @@ func (b *Bot) receiveLoop(ctx context.Context) error {
 			if !ok {
 				// Channel closed. Wait for context cancellation.
 				<-ctx.Done()
+
 				return ctx.Err()
 			}
 
