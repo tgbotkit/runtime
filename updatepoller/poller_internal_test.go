@@ -1,0 +1,163 @@
+package updatepoller
+
+import (
+	"context"
+	"net/http"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/tgbotkit/client"
+)
+
+type pollerMockClient struct {
+	client.ClientWithResponsesInterface
+	getUpdatesFunc func(ctx context.Context, body client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error)
+}
+
+func (m *pollerMockClient) GetUpdatesWithResponse(
+	ctx context.Context,
+	body client.GetUpdatesJSONRequestBody,
+	_ ...client.RequestEditorFn,
+) (*client.GetUpdatesResponse, error) {
+	return m.getUpdatesFunc(ctx, body)
+}
+
+type pollerOffsetStore struct {
+	offset atomic.Int64
+	saves  atomic.Int64
+}
+
+func newPollerOffsetStore(offset int) *pollerOffsetStore {
+	store := &pollerOffsetStore{}
+	store.offset.Store(int64(offset))
+
+	return store
+}
+
+func (s *pollerOffsetStore) Load(_ context.Context) (int, error) {
+	return int(s.offset.Load()), nil
+}
+
+func (s *pollerOffsetStore) Save(_ context.Context, offset int) error {
+	s.offset.Store(int64(offset))
+	s.saves.Add(1)
+
+	return nil
+}
+
+func (s *pollerOffsetStore) offsetValue() int {
+	return int(s.offset.Load())
+}
+
+func (s *pollerOffsetStore) saveCount() int {
+	return int(s.saves.Load())
+}
+
+func TestPollerDoesNotSaveOffsetWhenEnqueueInterrupted(t *testing.T) {
+	store := newPollerOffsetStore(7)
+	tgClient := &pollerMockClient{
+		getUpdatesFunc: func(_ context.Context, _ client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
+			return getUpdatesResponse([]client.Update{
+				{UpdateId: 10},
+				{UpdateId: 11},
+			}), nil
+		},
+	}
+
+	p, err := NewPoller(NewOptions(tgClient, WithOffsetStore(store)))
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
+	p.updates = make(chan client.Update, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		p.poll(ctx)
+	}()
+
+	waitForUpdateBufferLen(t, p.updates, 1)
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("poll did not return after context cancellation")
+	}
+
+	if got := store.saveCount(); got != 0 {
+		t.Fatalf("save count=%d, want 0", got)
+	}
+	if got := store.offsetValue(); got != 7 {
+		t.Fatalf("offset=%d, want 7", got)
+	}
+}
+
+func TestPollerSavesLastUpdateIDAfterSuccessfulBatch(t *testing.T) {
+	store := newPollerOffsetStore(7)
+	updates := []client.Update{
+		{UpdateId: 10},
+		{UpdateId: 11},
+		{UpdateId: 15},
+	}
+	tgClient := &pollerMockClient{
+		getUpdatesFunc: func(_ context.Context, _ client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
+			return getUpdatesResponse(updates), nil
+		},
+	}
+
+	p, err := NewPoller(NewOptions(tgClient, WithOffsetStore(store)))
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
+	p.updates = make(chan client.Update, len(updates))
+
+	p.poll(context.Background())
+
+	if got := store.saveCount(); got != 1 {
+		t.Fatalf("save count=%d, want 1", got)
+	}
+	if got := store.offsetValue(); got != 16 {
+		t.Fatalf("offset=%d, want 16", got)
+	}
+	if got := len(p.updates); got != len(updates) {
+		t.Fatalf("queued updates=%d, want %d", got, len(updates))
+	}
+}
+
+func getUpdatesResponse(updates []client.Update) *client.GetUpdatesResponse {
+	return &client.GetUpdatesResponse{
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
+		JSON200: &struct {
+			Ok     client.GetUpdates200Ok `json:"ok"`
+			Result []client.Update        `json:"result"`
+		}{
+			Ok:     true,
+			Result: updates,
+		},
+	}
+}
+
+func waitForUpdateBufferLen(t *testing.T, ch <-chan client.Update, want int) {
+	t.Helper()
+
+	deadline := time.NewTimer(time.Second)
+	defer deadline.Stop()
+
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		if got := len(ch); got == want {
+			return
+		}
+
+		select {
+		case <-deadline.C:
+			t.Fatalf("update channel length=%d, want %d", len(ch), want)
+		case <-ticker.C:
+		}
+	}
+}

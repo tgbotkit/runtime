@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/events"
 	"github.com/tgbotkit/runtime/handlers"
@@ -14,7 +13,9 @@ import (
 
 func TestRegistry(t *testing.T) {
 	ee, err := eventemitter.NewSync(eventemitter.NewOptions())
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("NewSync() unexpected error: %v", err)
+	}
 
 	reg := handlers.NewRegistry(ee, logger.NewNop())
 
@@ -30,16 +31,25 @@ func TestRegistry(t *testing.T) {
 		unsub := reg.OnUpdate(handler)
 		expectedPayload := &events.UpdateEvent{}
 		ee.Emit(context.Background(), events.OnUpdate, expectedPayload)
-		assert.True(t, called, "handler should be called")
-		assert.Same(t, expectedPayload, payload, "payload should match")
 
-		// Test unsubscribe
+		if !called {
+			t.Fatal("handler was not called")
+		}
+		if payload != expectedPayload {
+			t.Fatalf("payload mismatch: got %p, want %p", payload, expectedPayload)
+		}
+
 		called = false
 		payload = nil
 		unsub()
 		ee.Emit(context.Background(), events.OnUpdate, expectedPayload)
-		assert.False(t, called, "handler should not be called after unsubscribe")
-		assert.Nil(t, payload, "payload should be nil after unsubscribe")
+
+		if called {
+			t.Fatal("handler was called after unsubscribe")
+		}
+		if payload != nil {
+			t.Fatalf("payload=%v, want nil after unsubscribe", payload)
+		}
 	})
 
 	t.Run("OnMessage", func(t *testing.T) {
@@ -54,16 +64,25 @@ func TestRegistry(t *testing.T) {
 		unsub := reg.OnMessage(handler)
 		expectedPayload := &events.MessageEvent{}
 		ee.Emit(context.Background(), events.OnMessage, expectedPayload)
-		assert.True(t, called, "handler should be called")
-		assert.Same(t, expectedPayload, payload, "payload should match")
 
-		// Test unsubscribe
+		if !called {
+			t.Fatal("handler was not called")
+		}
+		if payload != expectedPayload {
+			t.Fatalf("payload mismatch: got %p, want %p", payload, expectedPayload)
+		}
+
 		called = false
 		payload = nil
 		unsub()
 		ee.Emit(context.Background(), events.OnMessage, expectedPayload)
-		assert.False(t, called, "handler should not be called after unsubscribe")
-		assert.Nil(t, payload, "payload should be nil after unsubscribe")
+
+		if called {
+			t.Fatal("handler was called after unsubscribe")
+		}
+		if payload != nil {
+			t.Fatalf("payload=%v, want nil after unsubscribe", payload)
+		}
 	})
 
 	t.Run("OnMessageType", func(t *testing.T) {
@@ -77,24 +96,32 @@ func TestRegistry(t *testing.T) {
 
 		unsub := reg.OnMessageType(messagetype.Text, handler)
 
-		// Should not be called for Photo
 		expectedPayloadPhoto := &events.MessageEvent{Type: messagetype.Photo}
 		ee.Emit(context.Background(), events.OnMessage, expectedPayloadPhoto)
-		assert.False(t, called, "handler should not be called for Photo")
+		if called {
+			t.Fatal("handler should not be called for photo")
+		}
 
-		// Should be called for Text
 		expectedPayloadText := &events.MessageEvent{Type: messagetype.Text}
 		ee.Emit(context.Background(), events.OnMessage, expectedPayloadText)
-		assert.True(t, called, "handler should be called for Text")
-		assert.Same(t, expectedPayloadText, payload, "payload should match")
+		if !called {
+			t.Fatal("handler was not called for text")
+		}
+		if payload != expectedPayloadText {
+			t.Fatalf("payload mismatch: got %p, want %p", payload, expectedPayloadText)
+		}
 
-		// Test unsubscribe
 		called = false
 		payload = nil
 		unsub()
 		ee.Emit(context.Background(), events.OnMessage, expectedPayloadText)
-		assert.False(t, called, "handler should not be called after unsubscribe")
-		assert.Nil(t, payload, "payload should be nil after unsubscribe")
+
+		if called {
+			t.Fatal("handler was called after unsubscribe")
+		}
+		if payload != nil {
+			t.Fatalf("payload=%v, want nil after unsubscribe", payload)
+		}
 	})
 
 	t.Run("OnCommand", func(t *testing.T) {
@@ -109,15 +136,24 @@ func TestRegistry(t *testing.T) {
 		unsub := reg.OnCommand(handler)
 		expectedPayload := &events.CommandEvent{}
 		ee.Emit(context.Background(), events.OnCommand, expectedPayload)
-		assert.True(t, called, "handler should be called")
-		assert.Same(t, expectedPayload, payload, "payload should match")
 
-		// Test unsubscribe
+		if !called {
+			t.Fatal("handler was not called")
+		}
+		if payload != expectedPayload {
+			t.Fatalf("payload mismatch: got %p, want %p", payload, expectedPayload)
+		}
+
 		called = false
 		payload = nil
 		unsub()
 		ee.Emit(context.Background(), events.OnCommand, expectedPayload)
-		assert.False(t, called, "handler should not be called after unsubscribe")
-		assert.Nil(t, payload, "payload should be nil after unsubscribe")
+
+		if called {
+			t.Fatal("handler was called after unsubscribe")
+		}
+		if payload != nil {
+			t.Fatalf("payload=%v, want nil after unsubscribe", payload)
+		}
 	})
 }

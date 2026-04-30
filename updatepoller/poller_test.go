@@ -3,11 +3,11 @@ package updatepoller_test
 import (
 	"context"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime/updatepoller"
 )
@@ -23,6 +23,7 @@ func (m *mockClient) GetUpdatesWithResponse(ctx context.Context, body client.Get
 	if m.getUpdatesFunc != nil {
 		return m.getUpdatesFunc(ctx, body)
 	}
+
 	return &client.GetUpdatesResponse{
 		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200: &struct {
@@ -59,43 +60,53 @@ func TestPoller_LifecycleContext(t *testing.T) {
 	)
 
 	p, err := updatepoller.NewPoller(opts)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
 
-	// Create a context and cancel it
 	startCtx, cancelStart := context.WithCancel(context.Background())
 	err = p.Start(startCtx)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Start() unexpected error: %v", err)
+	}
 
-	// Wait for some polls
 	time.Sleep(25 * time.Millisecond)
-	assert.Greater(t, tgClient.pollCount.Load(), int32(0))
+	if got := tgClient.pollCount.Load(); got <= 0 {
+		t.Fatalf("poll count=%d, want > 0", got)
+	}
 
-	// Canceling startCtx should NOT stop the poller now (as it uses internal background context)
 	cancelStart()
 
-	// Wait and check it's still polling
 	countAfterCancel := tgClient.pollCount.Load()
 	time.Sleep(25 * time.Millisecond)
-	assert.Greater(t, tgClient.pollCount.Load(), countAfterCancel, "Poller should still be running after startCtx was canceled")
+	if got := tgClient.pollCount.Load(); got <= countAfterCancel {
+		t.Fatalf("poll count after cancel=%d, want > %d", got, countAfterCancel)
+	}
 
-	// Stop explicitly
 	err = p.Stop(context.Background())
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Stop() unexpected error: %v", err)
+	}
 
-	// Verify it stopped
 	countAfterStop := tgClient.pollCount.Load()
 	time.Sleep(25 * time.Millisecond)
-	assert.Equal(t, countAfterStop, tgClient.pollCount.Load(), "Poller should have stopped after Stop() call")
+	if got := tgClient.pollCount.Load(); got != countAfterStop {
+		t.Fatalf("poll count after stop=%d, want %d", got, countAfterStop)
+	}
 
-	// Verify we can restart
 	err = p.Start(context.Background())
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("restart Start() unexpected error: %v", err)
+	}
 	time.Sleep(25 * time.Millisecond)
-	assert.Greater(t, tgClient.pollCount.Load(), countAfterStop)
+	if got := tgClient.pollCount.Load(); got <= countAfterStop {
+		t.Fatalf("poll count after restart=%d, want > %d", got, countAfterStop)
+	}
 
-	// Final stop
 	err = p.Stop(context.Background())
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("final Stop() unexpected error: %v", err)
+	}
 }
 
 func TestPoller_Restart(t *testing.T) {
@@ -109,37 +120,48 @@ func TestPoller_Restart(t *testing.T) {
 	)
 
 	p, err := updatepoller.NewPoller(opts)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
 
-	// Start
 	err = p.Start(context.Background())
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Start() unexpected error: %v", err)
+	}
 	time.Sleep(20 * time.Millisecond)
-	assert.Greater(t, tgClient.pollCount.Load(), int32(0))
+	if got := tgClient.pollCount.Load(); got <= 0 {
+		t.Fatalf("poll count=%d, want > 0", got)
+	}
 
-	// Stop
 	err = p.Stop(context.Background())
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Stop() unexpected error: %v", err)
+	}
 	countAfterStop := tgClient.pollCount.Load()
 	time.Sleep(20 * time.Millisecond)
-	assert.Equal(t, countAfterStop, tgClient.pollCount.Load())
+	if got := tgClient.pollCount.Load(); got != countAfterStop {
+		t.Fatalf("poll count after stop=%d, want %d", got, countAfterStop)
+	}
 
-	// Restart
 	err = p.Start(context.Background())
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("restart Start() unexpected error: %v", err)
+	}
 	time.Sleep(20 * time.Millisecond)
-	assert.Greater(t, tgClient.pollCount.Load(), countAfterStop)
+	if got := tgClient.pollCount.Load(); got <= countAfterStop {
+		t.Fatalf("poll count after restart=%d, want > %d", got, countAfterStop)
+	}
 
-	// Final stop
 	err = p.Stop(context.Background())
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("final Stop() unexpected error: %v", err)
+	}
 }
 
 func TestPoller_StopTimeout(t *testing.T) {
 	tgClient := &mockClient{}
 	store := &mockOffsetStore{}
 
-	// Create an API that takes longer than the stop timeout
 	tgClient.getUpdatesFunc = func(_ context.Context, _ client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
 		time.Sleep(50 * time.Millisecond)
 		return &client.GetUpdatesResponse{
@@ -161,15 +183,17 @@ func TestPoller_StopTimeout(t *testing.T) {
 	)
 
 	p, err := updatepoller.NewPoller(opts)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
 
 	err = p.Start(context.Background())
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Start() unexpected error: %v", err)
+	}
 
-	// Give it a moment to start the first poll
 	time.Sleep(20 * time.Millisecond)
 
-	// Stop with a very short timeout
 	stopCtx, cancelStop := context.WithTimeout(context.Background(), 5*time.Millisecond)
 	defer cancelStop()
 
@@ -177,9 +201,45 @@ func TestPoller_StopTimeout(t *testing.T) {
 	err = p.Stop(stopCtx)
 	elapsed := time.Since(start)
 
-	assert.Error(t, err)
-	if err != nil {
-		assert.Contains(t, err.Error(), "context deadline exceeded")
+	if err == nil {
+		t.Fatal("Stop() error is nil, want deadline error")
 	}
-	assert.GreaterOrEqual(t, elapsed, 5*time.Millisecond)
+	if !strings.Contains(err.Error(), "context deadline exceeded") {
+		t.Fatalf("Stop() error=%v, want context deadline exceeded", err)
+	}
+	if elapsed < 5*time.Millisecond {
+		t.Fatalf("Stop() elapsed=%v, want >= %v", elapsed, 5*time.Millisecond)
+	}
+}
+
+func TestPoller_StartCanceledContext(t *testing.T) {
+	tgClient := &mockClient{}
+	store := &mockOffsetStore{}
+
+	opts := updatepoller.NewOptions(
+		tgClient,
+		updatepoller.WithOffsetStore(store),
+		updatepoller.WithPollingInterval(10*time.Millisecond),
+	)
+
+	p, err := updatepoller.NewPoller(opts)
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
+
+	startCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = p.Start(startCtx)
+	if err == nil {
+		t.Fatal("Start() error is nil, want context canceled")
+	}
+	if err != context.Canceled {
+		t.Fatalf("Start() error=%v, want %v", err, context.Canceled)
+	}
+
+	time.Sleep(25 * time.Millisecond)
+	if got := tgClient.pollCount.Load(); got != 0 {
+		t.Fatalf("poll count=%d, want 0", got)
+	}
 }

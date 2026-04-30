@@ -19,12 +19,12 @@ func NewOptions(
 	return o
 }
 
-func WithErrorHandler(opt ErrorHandler) OptOptionsSetter {
-	return func(o *Options) { o.errorHandler = opt }
-}
-
 func WithStopOnError(opt bool) OptOptionsSetter {
 	return func(o *Options) { o.stopOnError = opt }
+}
+
+func WithErrorHandler(opt ErrorHandler) OptOptionsSetter {
+	return func(o *Options) { o.errorHandler = opt }
 }
 
 func (o *Options) Validate() error {

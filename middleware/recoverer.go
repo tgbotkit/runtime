@@ -2,11 +2,20 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"runtime/debug"
 
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/logger"
 )
+
+type recoveredPanicError struct {
+	value any
+}
+
+func (e recoveredPanicError) Error() string {
+	return fmt.Sprintf("panic recovered: %v", e.value)
+}
 
 // Recoverer returns a middleware that recovers from panics in listeners.
 func Recoverer(log logger.Logger) eventemitter.Middleware {
@@ -15,6 +24,7 @@ func Recoverer(log logger.Logger) eventemitter.Middleware {
 			defer func() {
 				if r := recover(); r != nil {
 					log.Errorf("panic recovered: %v\n%s", r, debug.Stack())
+					err = recoveredPanicError{value: r}
 				}
 			}()
 

@@ -60,7 +60,10 @@ func New(opts Options) (*Bot, error) {
 		}
 	}
 
-	botName, err := loadBotName(opts.client)
+	startupCtx, cancelStartup := context.WithTimeout(context.Background(), opts.startupTimeout)
+	defer cancelStartup()
+
+	botName, err := loadBotName(startupCtx, opts.client)
 	if err != nil {
 		return nil, fmt.Errorf("load bot name: %w", err)
 	}
@@ -141,10 +144,10 @@ func (b *Bot) initDefaultPoller() error {
 	return nil
 }
 
-func loadBotName(api client.ClientWithResponsesInterface) (string, error) {
+func loadBotName(ctx context.Context, api client.ClientWithResponsesInterface) (string, error) {
 	// Fetch bot's own info to get the username
 	// It is important to do it once at startup
-	me, err := api.GetMeWithResponse(context.Background())
+	me, err := api.GetMeWithResponse(ctx)
 	if err != nil {
 		return "", fmt.Errorf("get bot info: %w", err)
 	}
@@ -168,10 +171,7 @@ func (b *Bot) receiveLoop(ctx context.Context) error {
 			return ctx.Err()
 		case update, ok := <-ch:
 			if !ok {
-				// Channel closed. Wait for context cancellation.
-				<-ctx.Done()
-
-				return ctx.Err()
+				return ErrUpdateSourceClosed
 			}
 
 			b.Logger().Debugf("got update: %v", update.UpdateId)

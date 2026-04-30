@@ -15,11 +15,17 @@ func Logger(l logger.Logger) eventemitter.Middleware {
 			l.Debugf("handling event: %T", payload)
 
 			err := next.Handle(ctx, payload)
-			if err != nil && !errors.Is(err, eventemitter.ErrBreak) {
+			if err != nil && !errors.Is(err, eventemitter.ErrBreak) && !isRecoveredPanic(err) {
 				l.Errorf("error handling event %T: %v", payload, err)
 			}
 
 			return err
 		})
 	})
+}
+
+func isRecoveredPanic(err error) bool {
+	var recoveredErr recoveredPanicError
+
+	return errors.As(err, &recoveredErr)
 }

@@ -3,6 +3,10 @@
 package webhook
 
 import (
+	fmt461e464ebed9 "fmt"
+
+	errors461e464ebed9 "github.com/kazhuravlev/options-gen/pkg/errors"
+	validator461e464ebed9 "github.com/kazhuravlev/options-gen/pkg/validator"
 	"github.com/tgbotkit/client"
 )
 
@@ -40,5 +44,14 @@ func WithBufferSize(opt int) OptOptionsSetter {
 }
 
 func (o *Options) Validate() error {
+	errs := new(errors461e464ebed9.ValidationErrors)
+	errs.Add(errors461e464ebed9.NewValidationError("bufferSize", _validate_Options_bufferSize(o)))
+	return errs.AsError()
+}
+
+func _validate_Options_bufferSize(o *Options) error {
+	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.bufferSize, "min=1"); err != nil {
+		return fmt461e464ebed9.Errorf("field `bufferSize` did not pass the test: %w", err)
+	}
 	return nil
 }

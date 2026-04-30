@@ -2,12 +2,13 @@ package runtime_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime"
 	"github.com/tgbotkit/runtime/eventemitter"
@@ -24,7 +25,9 @@ func (m *mockClient) GetMeWithResponse(ctx context.Context, reqEditors ...client
 	if m.getMeFunc != nil {
 		return m.getMeFunc(ctx, reqEditors...)
 	}
+
 	username := "TestBot"
+
 	return &client.GetMeResponse{
 		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
 		JSON200: &struct {
@@ -44,7 +47,10 @@ func (m *mockClient) GetMeWithResponse(ctx context.Context, reqEditors ...client
 
 // mockUpdateSource mocks the UpdateSource interface.
 type mockUpdateSource struct {
-	ch chan client.Update
+	ch   chan client.Update
+	once sync.Once
+
+	closed atomic.Bool
 }
 
 func (m *mockUpdateSource) UpdateChan() <-chan client.Update {
@@ -56,12 +62,14 @@ func (m *mockUpdateSource) Start(_ context.Context) error {
 }
 
 func (m *mockUpdateSource) Stop(_ context.Context) error {
-	select {
-	case <-m.ch:
-		// already closed
-	default:
+	m.once.Do(func() {
+		if m.closed.Load() {
+			return
+		}
 		close(m.ch)
-	}
+		m.closed.Store(true)
+	})
+
 	return nil
 }
 
@@ -70,74 +78,154 @@ func TestNew(t *testing.T) {
 		cl := &mockClient{}
 		opts := runtime.NewOptions("test-token", runtime.WithClient(cl))
 		bot, err := runtime.New(opts)
-		assert.NoError(t, err)
-		assert.NotNil(t, bot)
-		assert.Equal(t, cl, bot.Client())
-		assert.NotNil(t, bot.EventEmitter())
-		assert.NotNil(t, bot.Handlers())
+		if err != nil {
+			t.Fatalf("New() unexpected error: %v", err)
+		}
+		if bot == nil {
+			t.Fatal("New() bot is nil")
+		}
+		if bot.Client() != cl {
+			t.Fatalf("Client() mismatch: got %T, want %T", bot.Client(), cl)
+		}
+		if bot.EventEmitter() == nil {
+			t.Fatal("EventEmitter() is nil")
+		}
+		if bot.Handlers() == nil {
+			t.Fatal("Handlers() is nil")
+		}
 	})
 
 	t.Run("validation error", func(t *testing.T) {
-		opts := runtime.NewOptions("") // Empty token, should fail validation
+		opts := runtime.NewOptions("")
 		bot, err := runtime.New(opts)
-		assert.Error(t, err)
-		assert.Nil(t, bot)
+		if err == nil {
+			t.Fatal("New() error is nil, want validation error")
+		}
+		if bot != nil {
+			t.Fatalf("New() bot=%v, want nil", bot)
+		}
 	})
 
 	t.Run("getMe error", func(t *testing.T) {
-		cl := &mockClient{}
-		cl.getMeFunc = func(_ context.Context, _ ...client.RequestEditorFn) (*client.GetMeResponse, error) {
-			return nil, assert.AnError
+		wantErr := errors.New("getMe failed")
+		cl := &mockClient{
+			getMeFunc: func(_ context.Context, _ ...client.RequestEditorFn) (*client.GetMeResponse, error) {
+				return nil, wantErr
+			},
 		}
+
 		opts := runtime.NewOptions("test-token", runtime.WithClient(cl))
 		bot, err := runtime.New(opts)
-		assert.Error(t, err)
-		assert.Nil(t, bot)
+		if err == nil {
+			t.Fatal("New() error is nil, want error")
+		}
+		if !errors.Is(err, wantErr) {
+			t.Fatalf("New() error=%v, want wrapped %v", err, wantErr)
+		}
+		if bot != nil {
+			t.Fatalf("New() bot=%v, want nil", bot)
+		}
+	})
+
+	t.Run("startup timeout", func(t *testing.T) {
+		cl := &mockClient{
+			getMeFunc: func(ctx context.Context, _ ...client.RequestEditorFn) (*client.GetMeResponse, error) {
+				<-ctx.Done()
+				return nil, ctx.Err()
+			},
+		}
+
+		opts := runtime.NewOptions(
+			"test-token",
+			runtime.WithClient(cl),
+			runtime.WithStartupTimeout(10*time.Millisecond),
+		)
+
+		bot, err := runtime.New(opts)
+		if err == nil {
+			t.Fatal("New() error is nil, want timeout error")
+		}
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("New() error=%v, want wrapped %v", err, context.DeadlineExceeded)
+		}
+		if bot != nil {
+			t.Fatalf("New() bot=%v, want nil", bot)
+		}
 	})
 }
 
 func TestBot_Run(t *testing.T) {
-	cl := &mockClient{}
-	us := &mockUpdateSource{ch: make(chan client.Update, 1)}
+	t.Run("processes updates and exits on context cancel", func(t *testing.T) {
+		cl := &mockClient{}
+		us := &mockUpdateSource{ch: make(chan client.Update, 1)}
 
-	ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
+		ee, err := eventemitter.NewSync(eventemitter.NewOptions())
+		if err != nil {
+			t.Fatalf("NewSync() unexpected error: %v", err)
+		}
 
-	// Track event emission
-	var eventReceived atomic.Bool
-	ee.AddListener(events.OnUpdate, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
-		eventReceived.Store(true)
-		return nil
-	}))
+		var eventReceived atomic.Bool
+		ee.AddListener(events.OnUpdate, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
+			eventReceived.Store(true)
+			return nil
+		}))
 
-	opts := runtime.NewOptions(
-		"test-token",
-		runtime.WithClient(cl),
-		runtime.WithUpdateSource(us),
-		runtime.WithEventEmitter(ee),
-	)
+		opts := runtime.NewOptions(
+			"test-token",
+			runtime.WithClient(cl),
+			runtime.WithUpdateSource(us),
+			runtime.WithEventEmitter(ee),
+		)
 
-	bot, err := runtime.New(opts)
-	assert.NoError(t, err)
+		bot, err := runtime.New(opts)
+		if err != nil {
+			t.Fatalf("New() unexpected error: %v", err)
+		}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	// Push an update
-	us.ch <- client.Update{UpdateId: 1}
+		us.ch <- client.Update{UpdateId: 1}
 
-	// Run in background
-	errCh := make(chan error)
-	go func() {
-		errCh <- bot.Run(ctx)
-	}()
+		errCh := make(chan error, 1)
+		go func() {
+			errCh <- bot.Run(ctx)
+		}()
 
-	// Give it some time to process
-	time.Sleep(50 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 
-	assert.True(t, eventReceived.Load(), "OnUpdate event should have been emitted")
+		if !eventReceived.Load() {
+			t.Fatal("OnUpdate event was not emitted")
+		}
 
-	// Cancel context to stop Run
-	cancel()
-	err = <-errCh
-	assert.ErrorIs(t, err, context.Canceled)
+		cancel()
+		err = <-errCh
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Run() error=%v, want %v", err, context.Canceled)
+		}
+	})
+
+	t.Run("returns ErrUpdateSourceClosed when source channel closes", func(t *testing.T) {
+		cl := &mockClient{}
+		closedCh := make(chan client.Update)
+		close(closedCh)
+
+		us := &mockUpdateSource{ch: closedCh}
+		us.closed.Store(true)
+		opts := runtime.NewOptions(
+			"test-token",
+			runtime.WithClient(cl),
+			runtime.WithUpdateSource(us),
+		)
+
+		bot, err := runtime.New(opts)
+		if err != nil {
+			t.Fatalf("New() unexpected error: %v", err)
+		}
+
+		err = bot.Run(context.Background())
+		if !errors.Is(err, runtime.ErrUpdateSourceClosed) {
+			t.Fatalf("Run() error=%v, want %v", err, runtime.ErrUpdateSourceClosed)
+		}
+	})
 }

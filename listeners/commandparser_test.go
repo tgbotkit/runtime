@@ -2,9 +2,9 @@ package listeners_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/events"
@@ -13,7 +13,10 @@ import (
 )
 
 func TestCommandParser(t *testing.T) {
-	ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
+	ee, err := eventemitter.NewSync(eventemitter.NewOptions())
+	if err != nil {
+		t.Fatalf("NewSync() unexpected error: %v", err)
+	}
 	botName := "mybot"
 	parser := listeners.CommandParser(ee, botName)
 
@@ -41,19 +44,34 @@ func TestCommandParser(t *testing.T) {
 		}
 
 		err := parser.Handle(context.Background(), event)
-		assert.ErrorIs(t, err, eventemitter.ErrBreak)
-		assert.NotNil(t, receivedEvent)
-		assert.Equal(t, "start", receivedEvent.Command)
-		assert.Equal(t, "", receivedEvent.Args)
+		if !errors.Is(err, eventemitter.ErrBreak) {
+			t.Fatalf("Handle() error=%v, want %v", err, eventemitter.ErrBreak)
+		}
+		if receivedEvent == nil {
+			t.Fatal("receivedEvent is nil")
+		}
+		if receivedEvent.Command != "start" {
+			t.Fatalf("command=%q, want %q", receivedEvent.Command, "start")
+		}
+		if receivedEvent.Args != "" {
+			t.Fatalf("args=%q, want empty string", receivedEvent.Args)
+		}
 	})
 
 	t.Run("parses command with args", func(t *testing.T) {
-		// Reset listener
-		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
+		ee, err := eventemitter.NewSync(eventemitter.NewOptions())
+		if err != nil {
+			t.Fatalf("NewSync() unexpected error: %v", err)
+		}
 		parser := listeners.CommandParser(ee, botName)
+
 		var receivedEvent *events.CommandEvent
 		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
-			receivedEvent = payload.(*events.CommandEvent)
+			e, ok := payload.(*events.CommandEvent)
+			if !ok {
+				t.Fatalf("payload type=%T, want *events.CommandEvent", payload)
+			}
+			receivedEvent = e
 			return nil
 		}))
 
@@ -67,19 +85,35 @@ func TestCommandParser(t *testing.T) {
 		}
 		event := &events.MessageEvent{Message: msg, Type: messagetype.Text}
 
-		err := parser.Handle(context.Background(), event)
-		assert.ErrorIs(t, err, eventemitter.ErrBreak)
-		assert.NotNil(t, receivedEvent)
-		assert.Equal(t, "echo", receivedEvent.Command)
-		assert.Equal(t, "hello world", receivedEvent.Args)
+		err = parser.Handle(context.Background(), event)
+		if !errors.Is(err, eventemitter.ErrBreak) {
+			t.Fatalf("Handle() error=%v, want %v", err, eventemitter.ErrBreak)
+		}
+		if receivedEvent == nil {
+			t.Fatal("receivedEvent is nil")
+		}
+		if receivedEvent.Command != "echo" {
+			t.Fatalf("command=%q, want %q", receivedEvent.Command, "echo")
+		}
+		if receivedEvent.Args != "hello world" {
+			t.Fatalf("args=%q, want %q", receivedEvent.Args, "hello world")
+		}
 	})
 
 	t.Run("parses command with bot mention", func(t *testing.T) {
-		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
+		ee, err := eventemitter.NewSync(eventemitter.NewOptions())
+		if err != nil {
+			t.Fatalf("NewSync() unexpected error: %v", err)
+		}
 		parser := listeners.CommandParser(ee, botName)
+
 		var receivedEvent *events.CommandEvent
 		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
-			receivedEvent = payload.(*events.CommandEvent)
+			e, ok := payload.(*events.CommandEvent)
+			if !ok {
+				t.Fatalf("payload type=%T, want *events.CommandEvent", payload)
+			}
+			receivedEvent = e
 			return nil
 		}))
 
@@ -93,16 +127,28 @@ func TestCommandParser(t *testing.T) {
 		}
 		event := &events.MessageEvent{Message: msg, Type: messagetype.Text}
 
-		err := parser.Handle(context.Background(), event)
-		assert.ErrorIs(t, err, eventemitter.ErrBreak)
-		assert.NotNil(t, receivedEvent)
-		assert.Equal(t, "start", receivedEvent.Command)
-		assert.Equal(t, "args", receivedEvent.Args)
+		err = parser.Handle(context.Background(), event)
+		if !errors.Is(err, eventemitter.ErrBreak) {
+			t.Fatalf("Handle() error=%v, want %v", err, eventemitter.ErrBreak)
+		}
+		if receivedEvent == nil {
+			t.Fatal("receivedEvent is nil")
+		}
+		if receivedEvent.Command != "start" {
+			t.Fatalf("command=%q, want %q", receivedEvent.Command, "start")
+		}
+		if receivedEvent.Args != "args" {
+			t.Fatalf("args=%q, want %q", receivedEvent.Args, "args")
+		}
 	})
 
 	t.Run("ignores command for other bot", func(t *testing.T) {
-		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
+		ee, err := eventemitter.NewSync(eventemitter.NewOptions())
+		if err != nil {
+			t.Fatalf("NewSync() unexpected error: %v", err)
+		}
 		parser := listeners.CommandParser(ee, botName)
+
 		var called bool
 		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
 			called = true
@@ -119,28 +165,42 @@ func TestCommandParser(t *testing.T) {
 		}
 		event := &events.MessageEvent{Message: msg, Type: messagetype.Text}
 
-		err := parser.Handle(context.Background(), event)
-		assert.NoError(t, err)
-		assert.False(t, called)
+		err = parser.Handle(context.Background(), event)
+		if err != nil {
+			t.Fatalf("Handle() unexpected error: %v", err)
+		}
+		if called {
+			t.Fatal("OnCommand listener should not be called")
+		}
 	})
 
 	t.Run("ignores non-text message", func(t *testing.T) {
-		ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
+		ee, err := eventemitter.NewSync(eventemitter.NewOptions())
+		if err != nil {
+			t.Fatalf("NewSync() unexpected error: %v", err)
+		}
 		parser := listeners.CommandParser(ee, botName)
 
 		event := &events.MessageEvent{Type: messagetype.Photo}
-		err := parser.Handle(context.Background(), event)
-		assert.NoError(t, err)
+		err = parser.Handle(context.Background(), event)
+		if err != nil {
+			t.Fatalf("Handle() unexpected error: %v", err)
+		}
 	})
 
 	t.Run("ignores invalid payload", func(t *testing.T) {
 		err := parser.Handle(context.Background(), "string")
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("Handle() unexpected error: %v", err)
+		}
 	})
 }
 
 func TestCommandParser_StopsOnErrBreakInEmitterChain(t *testing.T) {
-	ee, _ := eventemitter.NewSync(eventemitter.NewOptions())
+	ee, err := eventemitter.NewSync(eventemitter.NewOptions())
+	if err != nil {
+		t.Fatalf("NewSync() unexpected error: %v", err)
+	}
 	botName := "mybot"
 
 	ee.AddListener(events.OnMessage, listeners.CommandParser(ee, botName))
@@ -149,14 +209,12 @@ func TestCommandParser_StopsOnErrBreakInEmitterChain(t *testing.T) {
 	ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
 		_, ok := payload.(*events.CommandEvent)
 		commandHandled = ok
-
 		return nil
 	}))
 
 	var afterParserCalled bool
 	ee.AddListener(events.OnMessage, eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
 		afterParserCalled = true
-
 		return nil
 	}))
 
@@ -174,6 +232,10 @@ func TestCommandParser_StopsOnErrBreakInEmitterChain(t *testing.T) {
 		Type:    messagetype.Text,
 	})
 
-	assert.True(t, commandHandled)
-	assert.False(t, afterParserCalled)
+	if !commandHandled {
+		t.Fatal("command was not handled")
+	}
+	if afterParserCalled {
+		t.Fatal("listener after parser was called, want skipped")
+	}
 }

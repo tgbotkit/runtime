@@ -2,14 +2,14 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/tgbotkit/runtime/eventemitter"
 )
 
 func TestRecoverer(t *testing.T) {
-	t.Run("recovers from panic", func(t *testing.T) {
+	t.Run("recovers from panic and returns error", func(t *testing.T) {
 		logger := &mockLogger{}
 		recoverer := Recoverer(logger)
 
@@ -17,11 +17,18 @@ func TestRecoverer(t *testing.T) {
 			panic("test panic")
 		})
 
-		// Should not panic
 		err := recoverer.Handle(next).Handle(context.Background(), "test")
 
-		assert.NoError(t, err)
-		assert.True(t, logger.errorfCalled, "Errorf should be called on panic")
+		if err == nil {
+			t.Fatal("Handle() error is nil, want non-nil")
+		}
+		var recoveredErr recoveredPanicError
+		if !errors.As(err, &recoveredErr) {
+			t.Fatalf("Handle() error=%v, want recovered panic error", err)
+		}
+		if !logger.errorfCalled {
+			t.Fatal("logger.Errorf was not called")
+		}
 	})
 
 	t.Run("passes through without panic", func(t *testing.T) {
@@ -33,8 +40,11 @@ func TestRecoverer(t *testing.T) {
 		})
 
 		err := recoverer.Handle(next).Handle(context.Background(), "test")
-
-		assert.NoError(t, err)
-		assert.False(t, logger.errorfCalled, "Errorf should not be called without panic")
+		if err != nil {
+			t.Fatalf("Handle() unexpected error: %v", err)
+		}
+		if logger.errorfCalled {
+			t.Fatal("logger.Errorf should not be called")
+		}
 	})
 }

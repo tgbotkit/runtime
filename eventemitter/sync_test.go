@@ -3,6 +3,7 @@ package eventemitter
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 )
 
@@ -133,6 +134,78 @@ func TestEventEmitter_GlobMatching(t *testing.T) {
 	}
 }
 
+func TestEventEmitter_DeterministicMixedPatternListeners(t *testing.T) {
+	ee, err := NewSync(NewOptions())
+	if err != nil {
+		t.Fatalf("failed to create event emitter: %v", err)
+	}
+	ctx := context.Background()
+
+	var calls []string
+
+	ee.AddListener("test.*", ListenerFunc(func(_ context.Context, _ any) error {
+		calls = append(calls, "wildcard-first")
+		return nil
+	}))
+	ee.AddListener("test.event", ListenerFunc(func(_ context.Context, _ any) error {
+		calls = append(calls, "exact-second")
+		return nil
+	}))
+	ee.AddListener("test.*", ListenerFunc(func(_ context.Context, _ any) error {
+		calls = append(calls, "wildcard-third")
+		return nil
+	}))
+	ee.AddListener("test.event", ListenerFunc(func(_ context.Context, _ any) error {
+		calls = append(calls, "exact-fourth")
+		return nil
+	}))
+
+	want := []string{"wildcard-first", "exact-second", "wildcard-third", "exact-fourth"}
+	for range 100 {
+		calls = calls[:0]
+
+		ee.Emit(ctx, "test.event", nil)
+
+		assertCallOrder(t, calls, want)
+	}
+}
+
+func TestEventEmitter_DeterministicMixedPatternMiddleware(t *testing.T) {
+	ee, err := NewSync(NewOptions())
+	if err != nil {
+		t.Fatalf("failed to create event emitter: %v", err)
+	}
+	ctx := context.Background()
+
+	var calls []string
+	recordMiddleware := func(name string) Middleware {
+		return MiddlewareFunc(func(next Listener) Listener {
+			return ListenerFunc(func(ctx context.Context, payload any) error {
+				calls = append(calls, name)
+				return next.Handle(ctx, payload)
+			})
+		})
+	}
+
+	ee.Use("test.*", recordMiddleware("wildcard-first"))
+	ee.Use("test.event", recordMiddleware("exact-second"))
+	ee.Use("test.*", recordMiddleware("wildcard-third"))
+	ee.Use("test.event", recordMiddleware("exact-fourth"))
+	ee.AddListener("test.event", ListenerFunc(func(_ context.Context, _ any) error {
+		calls = append(calls, "listener")
+		return nil
+	}))
+
+	want := []string{"wildcard-first", "exact-second", "wildcard-third", "exact-fourth", "listener"}
+	for range 100 {
+		calls = calls[:0]
+
+		ee.Emit(ctx, "test.event", nil)
+
+		assertCallOrder(t, calls, want)
+	}
+}
+
 func TestEventEmitter_Once(t *testing.T) {
 	ee, err := NewSync(NewOptions())
 	if err != nil {
@@ -181,6 +254,29 @@ func TestEventEmitter_ErrBreak(t *testing.T) {
 	if secondCalled {
 		t.Error("expected second listener NOT to be called due to ErrBreak")
 	}
+}
+
+func TestEventEmitter_ErrBreakMixedPatternRegistrationOrder(t *testing.T) {
+	ee, err := NewSync(NewOptions())
+	if err != nil {
+		t.Fatalf("failed to create event emitter: %v", err)
+	}
+	ctx := context.Background()
+
+	var calls []string
+
+	ee.AddListener("test.event", ListenerFunc(func(_ context.Context, _ any) error {
+		calls = append(calls, "exact-break")
+		return ErrBreak
+	}))
+	ee.AddListener("test.*", ListenerFunc(func(_ context.Context, _ any) error {
+		calls = append(calls, "wildcard")
+		return nil
+	}))
+
+	ee.Emit(ctx, "test.event", nil)
+
+	assertCallOrder(t, calls, []string{"exact-break"})
 }
 
 func TestEventEmitter_ErrorHandler(t *testing.T) {
@@ -388,4 +484,12 @@ func TestEventEmitter_RemoveAllListeners_NoExist(_ *testing.T) {
 	ee, _ := NewSync(NewOptions())
 	// Should not panic
 	ee.RemoveAllListeners("non-existent")
+}
+
+func assertCallOrder(t *testing.T, got, want []string) {
+	t.Helper()
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("call order=%v, want %v", got, want)
+	}
 }

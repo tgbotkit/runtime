@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path"
+	"sort"
 	"sync"
 )
 
@@ -12,14 +13,21 @@ type listenerEntry struct {
 	Listener Listener
 	Once     bool
 	Event    string // Store the event pattern this listener was registered for
+	sequence uint64
+}
+
+type middlewareEntry struct {
+	Middleware Middleware
+	sequence   uint64
 }
 
 // SyncEventEmitter is a concrete implementation of EventEmitter.
 type SyncEventEmitter struct {
-	mu         sync.RWMutex
-	listeners  map[string][]*listenerEntry
-	middleware map[string][]Middleware
-	opts       Options
+	mu           sync.RWMutex
+	listeners    map[string][]*listenerEntry
+	middleware   map[string][]*middlewareEntry
+	nextSequence uint64
+	opts         Options
 }
 
 var _ EventEmitter = (*SyncEventEmitter)(nil)
@@ -32,7 +40,7 @@ func NewSync(opts Options) (*SyncEventEmitter, error) {
 
 	return &SyncEventEmitter{
 		listeners:  make(map[string][]*listenerEntry),
-		middleware: make(map[string][]Middleware),
+		middleware: make(map[string][]*middlewareEntry),
 		opts:       opts,
 	}, nil
 }
@@ -42,7 +50,7 @@ func (e *SyncEventEmitter) AddListener(event string, listener Listener) Unsubscr
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	entry := &listenerEntry{Listener: listener, Once: false, Event: event}
+	entry := &listenerEntry{Listener: listener, Once: false, Event: event, sequence: e.nextSequenceID()}
 	e.listeners[event] = append(e.listeners[event], entry)
 
 	return func() {
@@ -55,7 +63,7 @@ func (e *SyncEventEmitter) Once(event string, listener Listener) UnsubscribeFunc
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	entry := &listenerEntry{Listener: listener, Once: true, Event: event}
+	entry := &listenerEntry{Listener: listener, Once: true, Event: event, sequence: e.nextSequenceID()}
 	e.listeners[event] = append(e.listeners[event], entry)
 
 	return func() {
@@ -98,7 +106,10 @@ func (e *SyncEventEmitter) Use(event string, middleware ...Middleware) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	e.middleware[event] = append(e.middleware[event], middleware...)
+	for _, mw := range middleware {
+		entry := &middlewareEntry{Middleware: mw, sequence: e.nextSequenceID()}
+		e.middleware[event] = append(e.middleware[event], entry)
+	}
 }
 
 // ListenerCount returns the number of listeners for the given event.
@@ -133,7 +144,7 @@ func (e *SyncEventEmitter) getListenersAndMiddleware(event string) ([]*listenerE
 
 	var entries []*listenerEntry
 
-	var middleware []Middleware
+	var middlewareEntries []*middlewareEntry
 
 	// Find all matching listeners and middleware
 	for pattern, listeners := range e.listeners {
@@ -146,11 +157,29 @@ func (e *SyncEventEmitter) getListenersAndMiddleware(event string) ([]*listenerE
 	for pattern, mws := range e.middleware {
 		matched, err := path.Match(pattern, event)
 		if err == nil && matched {
-			middleware = append(middleware, mws...)
+			middlewareEntries = append(middlewareEntries, mws...)
 		}
 	}
 
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].sequence < entries[j].sequence
+	})
+	sort.SliceStable(middlewareEntries, func(i, j int) bool {
+		return middlewareEntries[i].sequence < middlewareEntries[j].sequence
+	})
+
+	middleware := make([]Middleware, 0, len(middlewareEntries))
+	for _, entry := range middlewareEntries {
+		middleware = append(middleware, entry.Middleware)
+	}
+
 	return entries, middleware
+}
+
+func (e *SyncEventEmitter) nextSequenceID() uint64 {
+	e.nextSequence++
+
+	return e.nextSequence
 }
 
 func (e *SyncEventEmitter) handleEntry(

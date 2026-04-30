@@ -45,12 +45,18 @@ func NewPoller(opts Options) (*Poller, error) {
 }
 
 // Start starts the Poller. The context is used only for the startup timeout.
-func (p *Poller) Start(_ context.Context) error {
+func (p *Poller) Start(ctx context.Context) error {
 	if p.cancel != nil {
 		return nil
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
 	p.cancel = cancel
 	p.wg.Add(1)
 
@@ -62,10 +68,10 @@ func (p *Poller) Start(_ context.Context) error {
 
 		for {
 			select {
-			case <-ctx.Done():
+			case <-runCtx.Done():
 				return
 			case <-ticker.C:
-				p.poll(ctx)
+				p.poll(runCtx)
 			}
 		}
 	}()
@@ -132,26 +138,33 @@ func (p *Poller) poll(ctx context.Context) {
 		return
 	}
 
-	newOffset := p.processUpdates(ctx, resp.JSON200.Result)
+	newOffset, ok := p.processUpdates(ctx, resp.JSON200.Result)
+	if !ok {
+		return
+	}
 
-	if saveErr := p.opts.offsetStore.Save(ctx, newOffset); saveErr != nil {
+	p.saveOffset(ctx, newOffset)
+}
+
+func (p *Poller) saveOffset(ctx context.Context, offset int) {
+	if saveErr := p.opts.offsetStore.Save(ctx, offset); saveErr != nil {
 		if ctx.Err() == nil {
 			p.log.Errorf("save offset: %v", saveErr)
 		}
 	}
 }
 
-func (p *Poller) processUpdates(ctx context.Context, updates []client.Update) int {
-	var lastID int
+func (p *Poller) processUpdates(ctx context.Context, updates []client.Update) (int, bool) {
+	var newOffset int
 
 	for _, update := range updates {
 		select {
 		case <-ctx.Done():
-			return lastID + 1
+			return newOffset, false
 		case p.updates <- update:
-			lastID = update.UpdateId
+			newOffset = update.UpdateId + 1
 		}
 	}
 
-	return lastID + 1
+	return newOffset, true
 }

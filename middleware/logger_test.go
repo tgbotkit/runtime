@@ -86,4 +86,25 @@ func TestLoggerMiddleware(t *testing.T) {
 			t.Error("expected Errorf not to be called for ErrBreak")
 		}
 	})
+
+	t.Run("recovered panic error", func(t *testing.T) {
+		l := &mockLogger{}
+		mw := Logger(l)
+
+		next := eventemitter.ListenerFunc(func(_ context.Context, _ any) error {
+			return recoveredPanicError{value: "boom"}
+		})
+
+		err := mw.Handle(next).Handle(context.Background(), "test")
+		if err == nil {
+			t.Fatal("expected recovered panic error, got nil")
+		}
+
+		if !l.debugfCalled {
+			t.Error("expected Debugf to be called")
+		}
+		if l.errorfCalled {
+			t.Error("expected Errorf not to be called for recovered panic error")
+		}
+	})
 }
