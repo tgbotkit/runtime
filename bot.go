@@ -19,6 +19,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const (
+	defaultPollingInterval = time.Second
+	defaultPollTimeout     = 30 * time.Second
+	defaultRequestTimeout  = defaultPollTimeout + 5*time.Second
+)
+
 // Bot is the main bot structure.
 type Bot struct {
 	opts     Options
@@ -121,7 +127,9 @@ func (b *Bot) initDefaultPoller() error {
 	poller, err := updatepoller.NewPoller(updatepoller.NewOptions(
 		b.opts.client,
 		updatepoller.WithOffsetStore(offsetstore.NewInMemoryOffsetStore(0)),
-		updatepoller.WithPollingInterval(time.Second),
+		updatepoller.WithPollingInterval(defaultPollingInterval),
+		updatepoller.WithTimeout(defaultPollTimeout),
+		updatepoller.WithRequestTimeout(defaultRequestTimeout),
 		updatepoller.WithLogger(b.opts.logger),
 	))
 	if err != nil {

@@ -18,7 +18,8 @@ import (
 // mockClient mocks the Telegram API client.
 type mockClient struct {
 	client.ClientWithResponsesInterface
-	getMeFunc func(ctx context.Context, reqEditors ...client.RequestEditorFn) (*client.GetMeResponse, error)
+	getMeFunc      func(ctx context.Context, reqEditors ...client.RequestEditorFn) (*client.GetMeResponse, error)
+	getUpdatesFunc func(ctx context.Context, body client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error)
 }
 
 func (m *mockClient) GetMeWithResponse(ctx context.Context, reqEditors ...client.RequestEditorFn) (*client.GetMeResponse, error) {
@@ -41,6 +42,27 @@ func (m *mockClient) GetMeWithResponse(ctx context.Context, reqEditors ...client
 				FirstName: "Test Bot",
 				Username:  &username,
 			},
+		},
+	}, nil
+}
+
+func (m *mockClient) GetUpdatesWithResponse(
+	ctx context.Context,
+	body client.GetUpdatesJSONRequestBody,
+	_ ...client.RequestEditorFn,
+) (*client.GetUpdatesResponse, error) {
+	if m.getUpdatesFunc != nil {
+		return m.getUpdatesFunc(ctx, body)
+	}
+
+	return &client.GetUpdatesResponse{
+		HTTPResponse: &http.Response{StatusCode: http.StatusOK},
+		JSON200: &struct {
+			Ok     client.GetUpdates200Ok `json:"ok"`
+			Result []client.Update        `json:"result"`
+		}{
+			Ok:     true,
+			Result: nil,
 		},
 	}, nil
 }
@@ -364,6 +386,55 @@ func TestBot_Run(t *testing.T) {
 		err = bot.Run(context.Background())
 		if !errors.Is(err, runtime.ErrUpdateSourceClosed) {
 			t.Fatalf("Run() error=%v, want %v", err, runtime.ErrUpdateSourceClosed)
+		}
+	})
+
+	t.Run("default poller uses request timeout", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		errCh := make(chan error, 1)
+		cl := &mockClient{
+			getUpdatesFunc: func(ctx context.Context, body client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
+				if _, ok := ctx.Deadline(); !ok {
+					errCh <- errors.New("GetUpdates context has no deadline")
+				}
+				if body.Timeout == nil || *body.Timeout != 30 {
+					errCh <- errors.New("GetUpdates timeout is not 30 seconds")
+				}
+
+				cancel()
+
+				return &client.GetUpdatesResponse{
+					HTTPResponse: &http.Response{StatusCode: http.StatusOK},
+					JSON200: &struct {
+						Ok     client.GetUpdates200Ok `json:"ok"`
+						Result []client.Update        `json:"result"`
+					}{
+						Ok:     true,
+						Result: nil,
+					},
+				}, nil
+			},
+		}
+
+		bot, err := runtime.New(runtime.NewOptions(
+			"test-token",
+			runtime.WithClient(cl),
+			runtime.WithBotUsername("TestBot"),
+		))
+		if err != nil {
+			t.Fatalf("New() unexpected error: %v", err)
+		}
+
+		if err := bot.Run(ctx); err != nil {
+			t.Fatalf("Run() error=%v, want nil", err)
+		}
+
+		select {
+		case err := <-errCh:
+			t.Fatal(err)
+		default:
 		}
 	})
 }

@@ -2,6 +2,7 @@ package updatepoller
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"slices"
 	"sync/atomic"
@@ -25,9 +26,12 @@ func (m *pollerMockClient) GetUpdatesWithResponse(
 }
 
 type pollerOffsetStore struct {
-	offset atomic.Int64
-	saves  atomic.Int64
+	offset   atomic.Int64
+	saves    atomic.Int64
+	failSave atomic.Bool
 }
+
+var errSaveOffset = errors.New("save offset")
 
 func newPollerOffsetStore(offset int) *pollerOffsetStore {
 	store := &pollerOffsetStore{}
@@ -41,8 +45,12 @@ func (s *pollerOffsetStore) Load(_ context.Context) (int, error) {
 }
 
 func (s *pollerOffsetStore) Save(_ context.Context, offset int) error {
-	s.offset.Store(int64(offset))
 	s.saves.Add(1)
+	if s.failSave.Load() {
+		return errSaveOffset
+	}
+
+	s.offset.Store(int64(offset))
 
 	return nil
 }
@@ -125,6 +133,56 @@ func TestPollerSavesLastUpdateIDAfterSuccessfulBatch(t *testing.T) {
 	}
 	if got := len(p.updates); got != len(updates) {
 		t.Fatalf("queued updates=%d, want %d", got, len(updates))
+	}
+}
+
+func TestPollerRetriesPendingOffsetBeforeFetchingMore(t *testing.T) {
+	store := newPollerOffsetStore(7)
+	store.failSave.Store(true)
+
+	var fetches atomic.Int32
+	tgClient := &pollerMockClient{
+		getUpdatesFunc: func(_ context.Context, _ client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
+			fetches.Add(1)
+
+			return getUpdatesResponse([]client.Update{{UpdateId: 10}}), nil
+		},
+	}
+
+	p, err := NewPoller(NewOptions(tgClient, WithOffsetStore(store)))
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
+
+	if ok := p.poll(context.Background()); ok {
+		t.Fatal("poll() success=true, want false when offset save fails")
+	}
+	if got := fetches.Load(); got != 1 {
+		t.Fatalf("fetches=%d, want 1", got)
+	}
+	if got := store.offsetValue(); got != 7 {
+		t.Fatalf("offset=%d, want 7", got)
+	}
+	if !p.hasPendingOffset || p.pendingOffset != 11 {
+		t.Fatalf("pending offset=(%v, %d), want (true, 11)", p.hasPendingOffset, p.pendingOffset)
+	}
+
+	store.failSave.Store(false)
+
+	if ok := p.poll(context.Background()); !ok {
+		t.Fatal("poll() success=false, want true after pending offset save")
+	}
+	if got := fetches.Load(); got != 1 {
+		t.Fatalf("fetches=%d, want still 1", got)
+	}
+	if got := store.offsetValue(); got != 11 {
+		t.Fatalf("offset=%d, want 11", got)
+	}
+	if p.hasPendingOffset {
+		t.Fatal("pending offset still set after successful retry")
+	}
+	if got := len(p.updates); got != 1 {
+		t.Fatalf("queued updates=%d, want 1", got)
 	}
 }
 

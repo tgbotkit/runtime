@@ -5,16 +5,15 @@ import (
 	"strings"
 	"unicode/utf16"
 
+	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/events"
-	"github.com/tgbotkit/runtime/messagetype"
 )
 
-// CommandParser returns a listener that detects bot commands in text messages and emits OnCommand events.
+// CommandParser returns a listener that detects bot commands in messages and emits OnCommand events.
 func CommandParser(emitter eventemitter.EventEmitter, botName string) eventemitter.Listener {
 	return eventemitter.ListenerFunc(func(ctx context.Context, payload any) error {
-		// We only care about MessageEvent with text.
-		if event, ok := payload.(*events.MessageEvent); ok && event.Type == messagetype.Text {
+		if event, ok := payload.(*events.MessageEvent); ok {
 			if err := parseCommand(ctx, emitter, event, botName); err != nil {
 				return err
 			}
@@ -31,26 +30,29 @@ func parseCommand(
 	event *events.MessageEvent,
 	botName string,
 ) error {
-	if event.Message == nil || event.Message.Text == nil || event.Message.Entities == nil {
+	if event.Message == nil {
 		return nil
 	}
 
-	text := *event.Message.Text
+	text, entities, ok := commandSource(event.Message)
+	if !ok {
+		return nil
+	}
 
-	for _, entity := range *event.Message.Entities {
+	for _, entity := range entities {
 		if entity.Type != "bot_command" {
 			continue
 		}
 
 		commandText := sliceText(text, entity.Offset, entity.Length)
 
-		parts := strings.Split(commandText, "@")
-		if len(parts) > 1 {
-			if botName == "" || parts[1] != botName {
+		command, mention, hasMention := strings.Cut(commandText, "@")
+		if hasMention {
+			if botName == "" || !strings.EqualFold(mention, strings.TrimPrefix(botName, "@")) {
 				continue // Command is for another bot
 			}
 
-			commandText = parts[0]
+			commandText = command
 		}
 
 		commandText = strings.TrimPrefix(commandText, "/")
@@ -67,6 +69,18 @@ func parseCommand(
 	}
 
 	return nil
+}
+
+func commandSource(message *client.Message) (string, []client.MessageEntity, bool) {
+	if message.Text != nil && message.Entities != nil {
+		return *message.Text, *message.Entities, true
+	}
+
+	if message.Caption != nil && message.CaptionEntities != nil {
+		return *message.Caption, *message.CaptionEntities, true
+	}
+
+	return "", nil, false
 }
 
 func sliceText(text string, offset int, length int) string {

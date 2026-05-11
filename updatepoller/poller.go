@@ -22,7 +22,9 @@ type Poller struct {
 	cancel context.CancelFunc
 	done   chan struct{}
 
-	updates chan client.Update
+	updates          chan client.Update
+	pendingOffset    int
+	hasPendingOffset bool
 }
 
 const (
@@ -148,13 +150,40 @@ func (p *Poller) finish(done chan struct{}) {
 }
 
 func (p *Poller) poll(ctx context.Context) bool {
+	ok, flushed := p.savePendingOffset(ctx)
+	if !ok {
+		return false
+	}
+
+	if flushed {
+		return true
+	}
+
+	updates, ok := p.fetchUpdates(ctx)
+	if !ok {
+		return false
+	}
+
+	if len(updates) == 0 {
+		return true
+	}
+
+	newOffset, ok := p.processUpdates(ctx, updates)
+	if !ok {
+		return true
+	}
+
+	return p.saveOffset(ctx, newOffset)
+}
+
+func (p *Poller) fetchUpdates(ctx context.Context) ([]client.Update, bool) {
 	offset, err := p.opts.offsetStore.Load(ctx)
 	if err != nil {
 		if ctx.Err() == nil {
 			p.log.Errorf("load offset: %v", err)
 		}
 
-		return false
+		return nil, false
 	}
 
 	requestCtx, cancel := p.getUpdatesContext(ctx)
@@ -166,27 +195,20 @@ func (p *Poller) poll(ctx context.Context) bool {
 			p.log.Errorf("fetch updates: %v", err)
 		}
 
-		return false
+		return nil, false
 	}
 
 	if resp.StatusCode() != http.StatusOK {
 		p.log.Errorf("fetch updates: %s", resp.Status())
 
-		return false
+		return nil, false
 	}
 
-	if resp.JSON200 == nil || len(resp.JSON200.Result) == 0 {
-		return true
+	if resp.JSON200 == nil {
+		return nil, true
 	}
 
-	newOffset, ok := p.processUpdates(ctx, resp.JSON200.Result)
-	if !ok {
-		return true
-	}
-
-	p.saveOffset(ctx, newOffset)
-
-	return true
+	return resp.JSON200.Result, true
 }
 
 func (p *Poller) getUpdatesContext(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -222,12 +244,33 @@ func (p *Poller) getUpdatesRequest(offset int) client.GetUpdatesJSONRequestBody 
 	return body
 }
 
-func (p *Poller) saveOffset(ctx context.Context, offset int) {
+func (p *Poller) savePendingOffset(ctx context.Context) (bool, bool) {
+	if !p.hasPendingOffset {
+		return true, false
+	}
+
+	if !p.saveOffset(ctx, p.pendingOffset) {
+		return false, false
+	}
+
+	p.hasPendingOffset = false
+
+	return true, true
+}
+
+func (p *Poller) saveOffset(ctx context.Context, offset int) bool {
 	if saveErr := p.opts.offsetStore.Save(ctx, offset); saveErr != nil {
 		if ctx.Err() == nil {
 			p.log.Errorf("save offset: %v", saveErr)
 		}
+
+		p.pendingOffset = offset
+		p.hasPendingOffset = true
+
+		return false
 	}
+
+	return true
 }
 
 func (p *Poller) processUpdates(ctx context.Context, updates []client.Update) (int, bool) {
