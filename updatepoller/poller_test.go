@@ -212,6 +212,114 @@ func TestPoller_StopTimeout(t *testing.T) {
 	}
 }
 
+func TestPoller_StartAfterStopTimeoutDoesNotDuplicateLoop(t *testing.T) {
+	releasePoll := make(chan struct{})
+	tgClient := &mockClient{}
+	store := &mockOffsetStore{}
+
+	tgClient.getUpdatesFunc = func(_ context.Context, _ client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
+		<-releasePoll
+
+		return &client.GetUpdatesResponse{
+			HTTPResponse: &http.Response{StatusCode: http.StatusOK},
+			JSON200: &struct {
+				Ok     client.GetUpdates200Ok `json:"ok"`
+				Result []client.Update        `json:"result"`
+			}{
+				Ok:     true,
+				Result: []client.Update{},
+			},
+		}, nil
+	}
+
+	p, err := updatepoller.NewPoller(updatepoller.NewOptions(
+		tgClient,
+		updatepoller.WithOffsetStore(store),
+		updatepoller.WithPollingInterval(time.Millisecond),
+	))
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
+
+	if err := p.Start(context.Background()); err != nil {
+		t.Fatalf("Start() unexpected error: %v", err)
+	}
+	waitForPollCount(t, tgClient, 1)
+
+	stopCtx, cancelStop := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancelStop()
+	if err := p.Stop(stopCtx); err == nil {
+		t.Fatal("Stop() error is nil, want timeout")
+	}
+
+	if err := p.Start(context.Background()); err != nil {
+		t.Fatalf("Start() after timed-out Stop unexpected error: %v", err)
+	}
+	close(releasePoll)
+	time.Sleep(20 * time.Millisecond)
+
+	if got := tgClient.pollCount.Load(); got != 1 {
+		t.Fatalf("poll count=%d, want 1", got)
+	}
+
+	if err := p.Stop(context.Background()); err != nil {
+		t.Fatalf("final Stop() unexpected error: %v", err)
+	}
+}
+
+func TestPoller_StartAfterTimedOutStopCompletes(t *testing.T) {
+	releasePoll := make(chan struct{})
+	tgClient := &mockClient{}
+	store := &mockOffsetStore{}
+
+	tgClient.getUpdatesFunc = func(_ context.Context, _ client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
+		<-releasePoll
+
+		return &client.GetUpdatesResponse{
+			HTTPResponse: &http.Response{StatusCode: http.StatusOK},
+			JSON200: &struct {
+				Ok     client.GetUpdates200Ok `json:"ok"`
+				Result []client.Update        `json:"result"`
+			}{
+				Ok:     true,
+				Result: []client.Update{},
+			},
+		}, nil
+	}
+
+	p, err := updatepoller.NewPoller(updatepoller.NewOptions(
+		tgClient,
+		updatepoller.WithOffsetStore(store),
+		updatepoller.WithPollingInterval(time.Millisecond),
+	))
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
+
+	if err := p.Start(context.Background()); err != nil {
+		t.Fatalf("Start() unexpected error: %v", err)
+	}
+	waitForPollCount(t, tgClient, 1)
+
+	stopCtx, cancelStop := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancelStop()
+	if err := p.Stop(stopCtx); err == nil {
+		t.Fatal("Stop() error is nil, want timeout")
+	}
+
+	close(releasePoll)
+	waitForStablePollCount(t, tgClient, 1)
+
+	if err := p.Start(context.Background()); err != nil {
+		t.Fatalf("Start() after old loop exit unexpected error: %v", err)
+	}
+	waitForPollCount(t, tgClient, 2)
+
+	if err := p.Stop(context.Background()); err != nil {
+		t.Fatalf("final Stop() unexpected error: %v", err)
+	}
+}
+
 func TestPoller_StartCanceledContext(t *testing.T) {
 	tgClient := &mockClient{}
 	store := &mockOffsetStore{}
@@ -241,5 +349,56 @@ func TestPoller_StartCanceledContext(t *testing.T) {
 	time.Sleep(25 * time.Millisecond)
 	if got := tgClient.pollCount.Load(); got != 0 {
 		t.Fatalf("poll count=%d, want 0", got)
+	}
+}
+
+func waitForPollCount(t *testing.T, client *mockClient, want int32) {
+	t.Helper()
+
+	deadline := time.NewTimer(time.Second)
+	defer deadline.Stop()
+
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		if got := client.pollCount.Load(); got >= want {
+			return
+		}
+
+		select {
+		case <-deadline.C:
+			t.Fatalf("poll count=%d, want at least %d", client.pollCount.Load(), want)
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForStablePollCount(t *testing.T, client *mockClient, want int32) {
+	t.Helper()
+
+	deadline := time.NewTimer(time.Second)
+	defer deadline.Stop()
+
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		if got := client.pollCount.Load(); got == want {
+			select {
+			case <-time.After(10 * time.Millisecond):
+				if client.pollCount.Load() == want {
+					return
+				}
+			case <-deadline.C:
+				t.Fatalf("poll count did not stabilize at %d", want)
+			}
+		}
+
+		select {
+		case <-deadline.C:
+			t.Fatalf("poll count=%d, want stable %d", client.pollCount.Load(), want)
+		case <-ticker.C:
+		}
 	}
 }

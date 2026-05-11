@@ -156,4 +156,66 @@ func TestRegistry(t *testing.T) {
 			t.Fatalf("payload=%v, want nil after unsubscribe", payload)
 		}
 	})
+
+	t.Run("OnEditedMessage", func(t *testing.T) {
+		var called bool
+		var payload *events.MessageEvent
+		unsub := reg.OnEditedMessage(func(_ context.Context, event *events.MessageEvent) error {
+			called = true
+			payload = event
+
+			return nil
+		})
+
+		expectedPayload := &events.MessageEvent{Type: messagetype.Text}
+		ee.Emit(context.Background(), events.OnEditedMessage, expectedPayload)
+		if !called {
+			t.Fatal("handler was not called")
+		}
+		if payload != expectedPayload {
+			t.Fatalf("payload mismatch: got %p, want %p", payload, expectedPayload)
+		}
+
+		called = false
+		payload = nil
+		unsub()
+		ee.Emit(context.Background(), events.OnEditedMessage, expectedPayload)
+		if called {
+			t.Fatal("handler was called after unsubscribe")
+		}
+		if payload != nil {
+			t.Fatalf("payload=%v, want nil after unsubscribe", payload)
+		}
+	})
+
+	t.Run("OnCallbackQuery", func(t *testing.T) {
+		var called bool
+		var payload *events.CallbackQueryEvent
+		unsub := reg.OnCallbackQuery(func(_ context.Context, event *events.CallbackQueryEvent) error {
+			called = true
+			payload = event
+
+			return nil
+		})
+
+		expectedPayload := &events.CallbackQueryEvent{}
+		ee.Emit(context.Background(), events.OnCallbackQuery, expectedPayload)
+		if !called {
+			t.Fatal("handler was not called")
+		}
+		if payload != expectedPayload {
+			t.Fatalf("payload mismatch: got %p, want %p", payload, expectedPayload)
+		}
+
+		called = false
+		payload = nil
+		unsub()
+		ee.Emit(context.Background(), events.OnCallbackQuery, expectedPayload)
+		if called {
+			t.Fatal("handler was called after unsubscribe")
+		}
+		if payload != nil {
+			t.Fatalf("payload=%v, want nil after unsubscribe", payload)
+		}
+	})
 }

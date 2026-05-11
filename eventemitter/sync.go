@@ -75,28 +75,13 @@ func (e *SyncEventEmitter) Once(event string, listener Listener) UnsubscribeFunc
 func (e *SyncEventEmitter) Emit(ctx context.Context, event string, payload any) {
 	entries, middleware := e.getListenersAndMiddleware(event)
 
-	var toRemove []*listenerEntry
-
 	for _, entry := range entries {
+		if entry.Once && !e.claimOnce(entry) {
+			continue
+		}
+
 		if stop := e.handleEntry(ctx, event, payload, entry, middleware); stop {
-			if entry.Once {
-				toRemove = append(toRemove, entry)
-			}
-
 			break
-		}
-
-		if entry.Once {
-			toRemove = append(toRemove, entry)
-		}
-	}
-
-	if len(toRemove) > 0 {
-		e.mu.Lock()
-		defer e.mu.Unlock()
-
-		for _, entry := range toRemove {
-			e.internalRemoveListener(entry.Event, entry)
 		}
 	}
 }
@@ -235,4 +220,20 @@ func (e *SyncEventEmitter) internalRemoveListener(event string, entry *listenerE
 			return
 		}
 	}
+}
+
+func (e *SyncEventEmitter) claimOnce(entry *listenerEntry) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	entries := e.listeners[entry.Event]
+	for _, existingEntry := range entries {
+		if existingEntry == entry {
+			e.internalRemoveListener(entry.Event, entry)
+
+			return true
+		}
+	}
+
+	return false
 }

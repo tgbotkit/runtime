@@ -14,11 +14,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
-          cache: false
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.6
+      - name: Run golangci-lint
+        run: go tool golangci-lint run ./...
 
   test:
     runs-on: ubuntu-latest
@@ -29,3 +26,21 @@ jobs:
           go-version-file: 'go.mod'
       - name: Run tests with race detector
         run: go test -race -v -timeout 1m ./...
+
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Check module graph is tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: Verify module downloads
+        run: go mod verify
+      - name: Check generated files
+        run: |
+          go generate ./...
+          git diff --exit-code

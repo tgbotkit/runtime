@@ -12,6 +12,7 @@
 
 # Coverage
 *.coverprofile
+coverage.out
 coverage.txt
 
 # IDE

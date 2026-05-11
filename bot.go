@@ -22,7 +22,7 @@ import (
 // Bot is the main bot structure.
 type Bot struct {
 	opts     Options
-	registry handlers.RegistryInterface
+	registry *handlers.Registry
 }
 
 var _ botcontext.BotContext = (*Bot)(nil)
@@ -33,10 +33,15 @@ func New(opts Options) (*Bot, error) {
 		return nil, err
 	}
 
-	if opts.eventEmitter == nil {
-		var err error
+	if opts.client == nil && opts.botToken == "" {
+		return nil, fmt.Errorf("bot token is required when client is not provided")
+	}
 
-		opts.eventEmitter, err = eventemitter.NewSync(eventemitter.NewOptions())
+	var err error
+	if opts.eventEmitter == nil {
+		opts.eventEmitter, err = eventemitter.NewSync(eventemitter.NewOptions(
+			eventemitter.WithStopOnError(false),
+		))
 		if err != nil {
 			return nil, fmt.Errorf("create default event emitter: %w", err)
 		}
@@ -47,25 +52,15 @@ func New(opts Options) (*Bot, error) {
 	}
 
 	if opts.client == nil {
-		serverURL, err := client.NewServerUrlTelegramBotAPIEndpointSubstituteBotTokenWithYourBotToken(
-			client.ServerUrlTelegramBotAPIEndpointSubstituteBotTokenWithYourBotTokenBotTokenVariable(opts.botToken),
-		)
+		opts.client, err = newDefaultClient(opts.botToken)
 		if err != nil {
-			return nil, fmt.Errorf("create server URL: %w", err)
-		}
-
-		opts.client, err = client.NewClientWithResponses(serverURL)
-		if err != nil {
-			return nil, fmt.Errorf("create API client: %w", err)
+			return nil, err
 		}
 	}
 
-	startupCtx, cancelStartup := context.WithTimeout(context.Background(), opts.startupTimeout)
-	defer cancelStartup()
-
-	botName, err := loadBotName(startupCtx, opts.client)
+	botName, err := resolveBotName(opts)
 	if err != nil {
-		return nil, fmt.Errorf("load bot name: %w", err)
+		return nil, err
 	}
 
 	bot := &Bot{
@@ -73,13 +68,7 @@ func New(opts Options) (*Bot, error) {
 		registry: handlers.NewRegistry(opts.eventEmitter, opts.logger),
 	}
 
-	// Register internal middlewares
-	opts.eventEmitter.Use("*", middleware.ContextInjector(bot))
-	opts.eventEmitter.Use("*", middleware.Logger(bot.opts.logger))
-	opts.eventEmitter.Use("*", middleware.Recoverer(bot.opts.logger))
-
-	opts.eventEmitter.AddListener(events.OnUpdate, listeners.Classifier(opts.eventEmitter))
-	opts.eventEmitter.AddListener(events.OnMessage, listeners.CommandParser(opts.eventEmitter, botName))
+	registerDefaults(opts, bot, botName)
 
 	return bot, nil
 }
@@ -124,7 +113,7 @@ func (b *Bot) Logger() logger.Logger {
 }
 
 // Handlers returns the bot's handler registry.
-func (b *Bot) Handlers() handlers.RegistryInterface {
+func (b *Bot) Handlers() *handlers.Registry {
 	return b.registry
 }
 
@@ -142,6 +131,51 @@ func (b *Bot) initDefaultPoller() error {
 	b.opts.updateSource = poller
 
 	return nil
+}
+
+func newDefaultClient(botToken string) (client.ClientWithResponsesInterface, error) {
+	serverURL, err := client.NewServerUrlTelegramBotAPIEndpointSubstituteBotTokenWithYourBotToken(
+		client.ServerUrlTelegramBotAPIEndpointSubstituteBotTokenWithYourBotTokenBotTokenVariable(botToken),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create server URL: %w", err)
+	}
+
+	api, err := client.NewClientWithResponses(serverURL)
+	if err != nil {
+		return nil, fmt.Errorf("create API client: %w", err)
+	}
+
+	return api, nil
+}
+
+func resolveBotName(opts Options) (string, error) {
+	if !opts.defaultListenersEnabled || opts.botUsername != "" {
+		return opts.botUsername, nil
+	}
+
+	startupCtx, cancelStartup := context.WithTimeout(context.Background(), opts.startupTimeout)
+	defer cancelStartup()
+
+	botName, err := loadBotName(startupCtx, opts.client)
+	if err != nil {
+		return "", fmt.Errorf("load bot name: %w", err)
+	}
+
+	return botName, nil
+}
+
+func registerDefaults(opts Options, bot *Bot, botName string) {
+	if opts.defaultMiddlewareEnabled {
+		opts.eventEmitter.Use("*", middleware.ContextInjector(bot))
+		opts.eventEmitter.Use("*", middleware.Logger(bot.opts.logger))
+		opts.eventEmitter.Use("*", middleware.Recoverer(bot.opts.logger))
+	}
+
+	if opts.defaultListenersEnabled {
+		opts.eventEmitter.AddListener(events.OnUpdate, listeners.Classifier(opts.eventEmitter))
+		opts.eventEmitter.AddListener(events.OnMessage, listeners.CommandParser(opts.eventEmitter, botName))
+	}
 }
 
 func loadBotName(ctx context.Context, api client.ClientWithResponsesInterface) (string, error) {
@@ -168,9 +202,13 @@ func (b *Bot) receiveLoop(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil
 		case update, ok := <-ch:
 			if !ok {
+				if ctx.Err() != nil {
+					return nil
+				}
+
 				return ErrUpdateSourceClosed
 			}
 

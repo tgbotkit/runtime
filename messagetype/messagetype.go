@@ -52,6 +52,10 @@ func Detect(message *client.Message) MessageType {
 		return UsersShared
 	case message.ChatShared != nil:
 		return ChatShared
+	case message.ChatOwnerChanged != nil:
+		return ChatOwnerChanged
+	case message.ChatOwnerLeft != nil:
+		return ChatOwnerLeft
 	case message.WriteAccessAllowed != nil:
 		return WriteAccessAllowed
 	case message.ProximityAlertTriggered != nil:
@@ -86,6 +90,12 @@ func Detect(message *client.Message) MessageType {
 		return ChecklistTasksAdded
 	case message.ChecklistTasksDone != nil:
 		return ChecklistTasksDone
+	case message.ManagedBotCreated != nil:
+		return ManagedBotCreated
+	case message.PollOptionAdded != nil:
+		return PollOptionAdded
+	case message.PollOptionDeleted != nil:
+		return PollOptionDeleted
 	case message.DirectMessagePriceChanged != nil:
 		return DirectMessagePriceChanged
 	case message.Gift != nil:
@@ -132,6 +142,8 @@ func Detect(message *client.Message) MessageType {
 		return Sticker
 	case message.Story != nil:
 		return Story
+	case message.LivePhoto != nil:
+		return LivePhoto
 	case message.Video != nil:
 		return Video
 	case message.VideoNote != nil:
@@ -172,6 +184,7 @@ const (
 	Photo     MessageType = "photo"
 	Sticker   MessageType = "sticker"
 	Story     MessageType = "story"
+	LivePhoto MessageType = "live_photo"
 	Video     MessageType = "video"
 	VideoNote MessageType = "video_note"
 	Voice     MessageType = "voice"
@@ -259,6 +272,11 @@ const (
 	ChatBackgroundSet       MessageType = "chat_background_set"
 	ChecklistTasksAdded     MessageType = "checklist_tasks_added"
 	ChecklistTasksDone      MessageType = "checklist_tasks_done"
+	ChatOwnerChanged        MessageType = "chat_owner_changed"
+	ChatOwnerLeft           MessageType = "chat_owner_left"
+	ManagedBotCreated       MessageType = "managed_bot_created"
+	PollOptionAdded         MessageType = "poll_option_added"
+	PollOptionDeleted       MessageType = "poll_option_deleted"
 	PassportData            MessageType = "passport_data"
 	ConnectedWebsite        MessageType = "connected_website"
 )

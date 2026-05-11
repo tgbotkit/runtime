@@ -25,7 +25,7 @@ Injects the `Bot` instance into the `context.Context`. This allows any handler o
 Logs the processing of every event and any errors returned by handlers.
 
 ### `Recoverer`
-Recovers from panics in any listener or handler, preventing the entire bot process from crashing.
+Recovers from panics in any listener or handler, preventing the entire bot process from crashing. Recovered panics are returned to the event emitter as handler errors; with the default runtime event emitter, they are logged and do not stop later handlers.
 
 ## Registering Middleware
 

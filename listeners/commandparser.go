@@ -3,6 +3,7 @@ package listeners
 import (
 	"context"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/events"
@@ -71,32 +72,37 @@ func parseCommand(
 func sliceText(text string, offset int, length int) string {
 	runes := []rune(text)
 
-	if offset < 0 {
-		offset = 0
+	start := runeIndexFromUTF16Offset(runes, offset)
+
+	end := runeIndexFromUTF16Offset(runes, offset+length)
+	if end < start {
+		end = start
 	}
 
-	if offset >= len(runes) {
-		return ""
-	}
-
-	end := offset + length
-	if end > len(runes) {
-		end = len(runes)
-	}
-
-	return string(runes[offset:end])
+	return string(runes[start:end])
 }
 
 func sliceTextFrom(text string, offset int) string {
 	runes := []rune(text)
 
-	if offset < 0 {
-		offset = 0
+	start := runeIndexFromUTF16Offset(runes, offset)
+
+	return string(runes[start:])
+}
+
+func runeIndexFromUTF16Offset(runes []rune, offset int) int {
+	if offset <= 0 {
+		return 0
 	}
 
-	if offset >= len(runes) {
-		return ""
+	units := 0
+	for i, r := range runes {
+		if units >= offset {
+			return i
+		}
+
+		units += utf16.RuneLen(r)
 	}
 
-	return string(runes[offset:])
+	return len(runes)
 }

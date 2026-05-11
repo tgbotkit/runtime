@@ -23,6 +23,8 @@ func NewOptions(
 	// Setting defaults from field tag (if present)
 
 	o.pollingInterval, _ = time.ParseDuration("1s")
+	o.timeout, _ = time.ParseDuration("30s")
+	o.bufferSize = 100
 
 	o.client = client
 
@@ -35,6 +37,31 @@ func NewOptions(
 // pollingInterval is the interval between polling requests.
 func WithPollingInterval(opt time.Duration) OptOptionsSetter {
 	return func(o *Options) { o.pollingInterval = opt }
+}
+
+// timeout is the long-polling timeout sent to Telegram.
+func WithTimeout(opt time.Duration) OptOptionsSetter {
+	return func(o *Options) { o.timeout = opt }
+}
+
+// requestTimeout is the per-GetUpdates transport deadline. Zero disables it.
+func WithRequestTimeout(opt time.Duration) OptOptionsSetter {
+	return func(o *Options) { o.requestTimeout = opt }
+}
+
+// limit is the maximum number of updates to fetch per request.
+func WithLimit(opt int) OptOptionsSetter {
+	return func(o *Options) { o.limit = opt }
+}
+
+// allowedUpdates restricts the Telegram update types returned by polling.
+func WithAllowedUpdates(opt []string) OptOptionsSetter {
+	return func(o *Options) { o.allowedUpdates = opt }
+}
+
+// bufferSize is the capacity of the update channel.
+func WithBufferSize(opt int) OptOptionsSetter {
+	return func(o *Options) { o.bufferSize = opt }
 }
 
 // offsetStore is the store to use for storing the update offset.
@@ -50,6 +77,11 @@ func WithLogger(opt logger.Logger) OptOptionsSetter {
 func (o *Options) Validate() error {
 	errs := new(errors461e464ebed9.ValidationErrors)
 	errs.Add(errors461e464ebed9.NewValidationError("client", _validate_Options_client(o)))
+	errs.Add(errors461e464ebed9.NewValidationError("pollingInterval", _validate_Options_pollingInterval(o)))
+	errs.Add(errors461e464ebed9.NewValidationError("timeout", _validate_Options_timeout(o)))
+	errs.Add(errors461e464ebed9.NewValidationError("requestTimeout", _validate_Options_requestTimeout(o)))
+	errs.Add(errors461e464ebed9.NewValidationError("limit", _validate_Options_limit(o)))
+	errs.Add(errors461e464ebed9.NewValidationError("bufferSize", _validate_Options_bufferSize(o)))
 	errs.Add(errors461e464ebed9.NewValidationError("offsetStore", _validate_Options_offsetStore(o)))
 	return errs.AsError()
 }
@@ -57,6 +89,41 @@ func (o *Options) Validate() error {
 func _validate_Options_client(o *Options) error {
 	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.client, "required"); err != nil {
 		return fmt461e464ebed9.Errorf("field `client` did not pass the test: %w", err)
+	}
+	return nil
+}
+
+func _validate_Options_pollingInterval(o *Options) error {
+	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.pollingInterval, "gt=0"); err != nil {
+		return fmt461e464ebed9.Errorf("field `pollingInterval` did not pass the test: %w", err)
+	}
+	return nil
+}
+
+func _validate_Options_timeout(o *Options) error {
+	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.timeout, "gte=0"); err != nil {
+		return fmt461e464ebed9.Errorf("field `timeout` did not pass the test: %w", err)
+	}
+	return nil
+}
+
+func _validate_Options_requestTimeout(o *Options) error {
+	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.requestTimeout, "gte=0"); err != nil {
+		return fmt461e464ebed9.Errorf("field `requestTimeout` did not pass the test: %w", err)
+	}
+	return nil
+}
+
+func _validate_Options_limit(o *Options) error {
+	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.limit, "omitempty,min=1,max=100"); err != nil {
+		return fmt461e464ebed9.Errorf("field `limit` did not pass the test: %w", err)
+	}
+	return nil
+}
+
+func _validate_Options_bufferSize(o *Options) error {
+	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.bufferSize, "gt=0"); err != nil {
+		return fmt461e464ebed9.Errorf("field `bufferSize` did not pass the test: %w", err)
 	}
 	return nil
 }

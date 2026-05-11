@@ -3,6 +3,7 @@ package updatepoller
 import (
 	"context"
 	"net/http"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -124,6 +125,124 @@ func TestPollerSavesLastUpdateIDAfterSuccessfulBatch(t *testing.T) {
 	}
 	if got := len(p.updates); got != len(updates) {
 		t.Fatalf("queued updates=%d, want %d", got, len(updates))
+	}
+}
+
+func TestPollerGetUpdatesRequestOptions(t *testing.T) {
+	store := newPollerOffsetStore(42)
+	allowedUpdates := []string{"message", "callback_query"}
+	var gotBody client.GetUpdatesJSONRequestBody
+	tgClient := &pollerMockClient{
+		getUpdatesFunc: func(_ context.Context, body client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
+			gotBody = body
+
+			return getUpdatesResponse(nil), nil
+		},
+	}
+
+	p, err := NewPoller(NewOptions(
+		tgClient,
+		WithOffsetStore(store),
+		WithTimeout(45*time.Second),
+		WithLimit(25),
+		WithAllowedUpdates(allowedUpdates),
+	))
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
+
+	p.poll(context.Background())
+
+	if gotBody.Offset == nil || *gotBody.Offset != 42 {
+		t.Fatalf("offset=%v, want 42", gotBody.Offset)
+	}
+	if gotBody.Timeout == nil || *gotBody.Timeout != 45 {
+		t.Fatalf("timeout=%v, want 45", gotBody.Timeout)
+	}
+	if gotBody.Limit == nil || *gotBody.Limit != 25 {
+		t.Fatalf("limit=%v, want 25", gotBody.Limit)
+	}
+	if gotBody.AllowedUpdates == nil {
+		t.Fatal("allowed updates is nil")
+	}
+	if got, want := *gotBody.AllowedUpdates, allowedUpdates; !slices.Equal(got, want) {
+		t.Fatalf("allowed updates=%v, want %v", got, want)
+	}
+}
+
+func TestPollerRequestTimeout(t *testing.T) {
+	store := newPollerOffsetStore(0)
+	requestTimeout := 20 * time.Millisecond
+	tgClient := &pollerMockClient{
+		getUpdatesFunc: func(ctx context.Context, _ client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
+			deadline, ok := ctx.Deadline()
+			if !ok {
+				t.Fatal("GetUpdates context has no deadline")
+			}
+
+			remaining := time.Until(deadline)
+			if remaining <= 0 || remaining > requestTimeout {
+				t.Fatalf("deadline remaining=%v, want within %v", remaining, requestTimeout)
+			}
+
+			<-ctx.Done()
+
+			return nil, ctx.Err()
+		},
+	}
+
+	p, err := NewPoller(NewOptions(
+		tgClient,
+		WithOffsetStore(store),
+		WithRequestTimeout(requestTimeout),
+	))
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
+
+	start := time.Now()
+	if ok := p.poll(context.Background()); ok {
+		t.Fatal("poll() success=true, want false after request timeout")
+	}
+	if elapsed := time.Since(start); elapsed < requestTimeout || elapsed > time.Second {
+		t.Fatalf("poll elapsed=%v, want at least %v and less than 1s", elapsed, requestTimeout)
+	}
+}
+
+func TestPollerBufferSizeOption(t *testing.T) {
+	tgClient := &pollerMockClient{
+		getUpdatesFunc: func(_ context.Context, _ client.GetUpdatesJSONRequestBody) (*client.GetUpdatesResponse, error) {
+			return getUpdatesResponse(nil), nil
+		},
+	}
+
+	p, err := NewPoller(NewOptions(
+		tgClient,
+		WithOffsetStore(newPollerOffsetStore(0)),
+		WithBufferSize(7),
+	))
+	if err != nil {
+		t.Fatalf("NewPoller() unexpected error: %v", err)
+	}
+	if got := cap(p.updates); got != 7 {
+		t.Fatalf("update buffer size=%d, want 7", got)
+	}
+}
+
+func TestPollerRetryBackoffResetAfterSuccess(t *testing.T) {
+	backoff := pollRetryBackoff{}
+
+	if got := backoff.Next(); got != minRetryBackoff {
+		t.Fatalf("first backoff=%v, want %v", got, minRetryBackoff)
+	}
+	if got := backoff.Next(); got != 2*minRetryBackoff {
+		t.Fatalf("second backoff=%v, want %v", got, 2*minRetryBackoff)
+	}
+
+	backoff.Reset()
+
+	if got := backoff.Next(); got != minRetryBackoff {
+		t.Fatalf("backoff after reset=%v, want %v", got, minRetryBackoff)
 	}
 }
 

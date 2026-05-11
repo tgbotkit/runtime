@@ -20,6 +20,7 @@ func NewOptions(
 	// Setting defaults from field tag (if present)
 
 	o.bufferSize = 100
+	o.maxBodyBytes = 1048576
 
 	for _, opt := range options {
 		opt(&o)
@@ -43,15 +44,47 @@ func WithBufferSize(opt int) OptOptionsSetter {
 	return func(o *Options) { o.bufferSize = opt }
 }
 
+func WithMaxBodyBytes(opt int64) OptOptionsSetter {
+	return func(o *Options) { o.maxBodyBytes = opt }
+}
+
+func WithAllowedUpdates(opt []string) OptOptionsSetter {
+	return func(o *Options) { o.allowedUpdates = opt }
+}
+
+func WithDropPendingUpdates(opt bool) OptOptionsSetter {
+	return func(o *Options) { o.dropPendingUpdates = opt }
+}
+
+func WithMaxConnections(opt int) OptOptionsSetter {
+	return func(o *Options) { o.maxConnections = opt }
+}
+
 func (o *Options) Validate() error {
 	errs := new(errors461e464ebed9.ValidationErrors)
 	errs.Add(errors461e464ebed9.NewValidationError("bufferSize", _validate_Options_bufferSize(o)))
+	errs.Add(errors461e464ebed9.NewValidationError("maxBodyBytes", _validate_Options_maxBodyBytes(o)))
+	errs.Add(errors461e464ebed9.NewValidationError("maxConnections", _validate_Options_maxConnections(o)))
 	return errs.AsError()
 }
 
 func _validate_Options_bufferSize(o *Options) error {
 	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.bufferSize, "min=1"); err != nil {
 		return fmt461e464ebed9.Errorf("field `bufferSize` did not pass the test: %w", err)
+	}
+	return nil
+}
+
+func _validate_Options_maxBodyBytes(o *Options) error {
+	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.maxBodyBytes, "min=1"); err != nil {
+		return fmt461e464ebed9.Errorf("field `maxBodyBytes` did not pass the test: %w", err)
+	}
+	return nil
+}
+
+func _validate_Options_maxConnections(o *Options) error {
+	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.maxConnections, "omitempty,min=1,max=100"); err != nil {
+		return fmt461e464ebed9.Errorf("field `maxConnections` did not pass the test: %w", err)
 	}
 	return nil
 }

@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestEventEmitter_Emit_BreakOnError(t *testing.T) {
@@ -224,6 +227,44 @@ func TestEventEmitter_Once(t *testing.T) {
 
 	if callCount != 1 {
 		t.Errorf("expected listener to be called once, got %d", callCount)
+	}
+}
+
+func TestEventEmitter_Once_ConcurrentEmit(t *testing.T) {
+	ee, err := NewSync(NewOptions())
+	if err != nil {
+		t.Fatalf("failed to create event emitter: %v", err)
+	}
+
+	var callCount atomic.Int32
+	releaseListener := make(chan struct{})
+	ee.Once("test", ListenerFunc(func(_ context.Context, _ any) error {
+		callCount.Add(1)
+		<-releaseListener
+
+		return nil
+	}))
+
+	const goroutines = 100
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			<-start
+			ee.Emit(context.Background(), "test", nil)
+		}()
+	}
+
+	close(start)
+	waitForCallCount(t, &callCount, 1)
+	close(releaseListener)
+	wg.Wait()
+
+	if got := callCount.Load(); got != 1 {
+		t.Fatalf("call count=%d, want 1", got)
 	}
 }
 
@@ -491,5 +532,27 @@ func assertCallOrder(t *testing.T, got, want []string) {
 
 	if !slices.Equal(got, want) {
 		t.Fatalf("call order=%v, want %v", got, want)
+	}
+}
+
+func waitForCallCount(t *testing.T, count *atomic.Int32, want int32) {
+	t.Helper()
+
+	deadline := time.NewTimer(time.Second)
+	defer deadline.Stop()
+
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		if count.Load() >= want {
+			return
+		}
+
+		select {
+		case <-deadline.C:
+			t.Fatalf("call count=%d, want at least %d", count.Load(), want)
+		case <-ticker.C:
+		}
 	}
 }

@@ -95,6 +95,18 @@ func TestNew(t *testing.T) {
 		}
 	})
 
+	t.Run("injected client does not require token", func(t *testing.T) {
+		cl := &mockClient{}
+		opts := runtime.NewOptions("", runtime.WithClient(cl))
+		bot, err := runtime.New(opts)
+		if err != nil {
+			t.Fatalf("New() unexpected error: %v", err)
+		}
+		if bot == nil {
+			t.Fatal("New() bot is nil")
+		}
+	})
+
 	t.Run("validation error", func(t *testing.T) {
 		opts := runtime.NewOptions("")
 		bot, err := runtime.New(opts)
@@ -152,6 +164,132 @@ func TestNew(t *testing.T) {
 			t.Fatalf("New() bot=%v, want nil", bot)
 		}
 	})
+
+	t.Run("bot username skips getMe and filters commands", func(t *testing.T) {
+		cl := &mockClient{
+			getMeFunc: func(_ context.Context, _ ...client.RequestEditorFn) (*client.GetMeResponse, error) {
+				t.Fatal("GetMeWithResponse should not be called when bot username is configured")
+
+				return nil, nil
+			},
+		}
+
+		opts := runtime.NewOptions(
+			"test-token",
+			runtime.WithClient(cl),
+			runtime.WithBotUsername("ConfiguredBot"),
+		)
+
+		bot, err := runtime.New(opts)
+		if err != nil {
+			t.Fatalf("New() unexpected error: %v", err)
+		}
+
+		var command string
+		bot.Handlers().OnCommand(func(_ context.Context, event *events.CommandEvent) error {
+			command = event.Command
+
+			return nil
+		})
+
+		text := "/start@ConfiguredBot"
+		bot.EventEmitter().Emit(context.Background(), events.OnMessage, &events.MessageEvent{
+			Message: &client.Message{
+				Text: &text,
+				Entities: &[]client.MessageEntity{
+					{Type: "bot_command", Offset: 0, Length: len([]rune(text))},
+				},
+			},
+			Type: "text",
+		})
+
+		if command != "start" {
+			t.Fatalf("command=%q, want %q", command, "start")
+		}
+	})
+
+	t.Run("disabled default listeners skips getMe", func(t *testing.T) {
+		cl := &mockClient{
+			getMeFunc: func(_ context.Context, _ ...client.RequestEditorFn) (*client.GetMeResponse, error) {
+				t.Fatal("GetMeWithResponse should not be called when default listeners are disabled")
+
+				return nil, nil
+			},
+		}
+
+		bot, err := runtime.New(runtime.NewOptions(
+			"test-token",
+			runtime.WithClient(cl),
+			runtime.WithDefaultListenersEnabled(false),
+		))
+		if err != nil {
+			t.Fatalf("New() unexpected error: %v", err)
+		}
+		if bot == nil {
+			t.Fatal("New() bot is nil")
+		}
+	})
+
+	t.Run("default handlers continue after ordinary error", func(t *testing.T) {
+		cl := &mockClient{}
+		bot, err := runtime.New(runtime.NewOptions(
+			"test-token",
+			runtime.WithClient(cl),
+			runtime.WithBotUsername("TestBot"),
+		))
+		if err != nil {
+			t.Fatalf("New() unexpected error: %v", err)
+		}
+
+		wantErr := errors.New("handler failed")
+		var secondCalled atomic.Bool
+		bot.Handlers().OnUpdate(func(_ context.Context, _ *events.UpdateEvent) error {
+			return wantErr
+		})
+		bot.Handlers().OnUpdate(func(_ context.Context, _ *events.UpdateEvent) error {
+			secondCalled.Store(true)
+
+			return nil
+		})
+
+		bot.EventEmitter().Emit(context.Background(), events.OnUpdate, &events.UpdateEvent{
+			Update: &client.Update{UpdateId: 1},
+		})
+
+		if !secondCalled.Load() {
+			t.Fatal("second handler was not called after ordinary error")
+		}
+	})
+
+	t.Run("default handlers stop on ErrBreak", func(t *testing.T) {
+		cl := &mockClient{}
+		bot, err := runtime.New(runtime.NewOptions(
+			"test-token",
+			runtime.WithClient(cl),
+			runtime.WithBotUsername("TestBot"),
+		))
+		if err != nil {
+			t.Fatalf("New() unexpected error: %v", err)
+		}
+
+		var secondCalled atomic.Bool
+		bot.Handlers().OnUpdate(func(_ context.Context, _ *events.UpdateEvent) error {
+			return eventemitter.ErrBreak
+		})
+		bot.Handlers().OnUpdate(func(_ context.Context, _ *events.UpdateEvent) error {
+			secondCalled.Store(true)
+
+			return nil
+		})
+
+		bot.EventEmitter().Emit(context.Background(), events.OnUpdate, &events.UpdateEvent{
+			Update: &client.Update{UpdateId: 1},
+		})
+
+		if secondCalled.Load() {
+			t.Fatal("second handler was called after ErrBreak")
+		}
+	})
 }
 
 func TestBot_Run(t *testing.T) {
@@ -200,8 +338,8 @@ func TestBot_Run(t *testing.T) {
 
 		cancel()
 		err = <-errCh
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("Run() error=%v, want %v", err, context.Canceled)
+		if err != nil {
+			t.Fatalf("Run() error=%v, want nil", err)
 		}
 	})
 

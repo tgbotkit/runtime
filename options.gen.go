@@ -24,6 +24,8 @@ func NewOptions(
 	// Setting defaults from field tag (if present)
 
 	o.startupTimeout, _ = time.ParseDuration("10s")
+	o.defaultMiddlewareEnabled = true
+	o.defaultListenersEnabled = true
 
 	o.botToken = botToken
 
@@ -31,6 +33,11 @@ func NewOptions(
 		opt(&o)
 	}
 	return o
+}
+
+// botUsername is the bot username used for command mention filtering.
+func WithBotUsername(opt string) OptOptionsSetter {
+	return func(o *Options) { o.botUsername = opt }
 }
 
 // client is the Telegram API client.
@@ -58,18 +65,20 @@ func WithStartupTimeout(opt time.Duration) OptOptionsSetter {
 	return func(o *Options) { o.startupTimeout = opt }
 }
 
-func (o *Options) Validate() error {
-	errs := new(errors461e464ebed9.ValidationErrors)
-	errs.Add(errors461e464ebed9.NewValidationError("botToken", _validate_Options_botToken(o)))
-	errs.Add(errors461e464ebed9.NewValidationError("startupTimeout", _validate_Options_startupTimeout(o)))
-	return errs.AsError()
+// defaultMiddlewareEnabled controls registration of runtime middleware.
+func WithDefaultMiddlewareEnabled(opt bool) OptOptionsSetter {
+	return func(o *Options) { o.defaultMiddlewareEnabled = opt }
 }
 
-func _validate_Options_botToken(o *Options) error {
-	if err := validator461e464ebed9.GetValidatorFor(o).Var(o.botToken, "required"); err != nil {
-		return fmt461e464ebed9.Errorf("field `botToken` did not pass the test: %w", err)
-	}
-	return nil
+// defaultListenersEnabled controls registration of runtime listeners.
+func WithDefaultListenersEnabled(opt bool) OptOptionsSetter {
+	return func(o *Options) { o.defaultListenersEnabled = opt }
+}
+
+func (o *Options) Validate() error {
+	errs := new(errors461e464ebed9.ValidationErrors)
+	errs.Add(errors461e464ebed9.NewValidationError("startupTimeout", _validate_Options_startupTimeout(o)))
+	return errs.AsError()
 }
 
 func _validate_Options_startupTimeout(o *Options) error {

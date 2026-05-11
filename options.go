@@ -13,7 +13,9 @@ import (
 // Options is the options for the Bot.
 type Options struct {
 	// botToken is the Telegram bot token.
-	botToken string `option:"mandatory" validate:"required"`
+	botToken string `option:"mandatory"`
+	// botUsername is the bot username used for command mention filtering.
+	botUsername string
 
 	// client is the Telegram API client.
 	client client.ClientWithResponsesInterface
@@ -25,4 +27,8 @@ type Options struct {
 	logger logger.Logger
 	// startupTimeout bounds blocking startup API calls.
 	startupTimeout time.Duration `default:"10s" validate:"gt=0"`
+	// defaultMiddlewareEnabled controls registration of runtime middleware.
+	defaultMiddlewareEnabled bool `default:"true" option:"optional"`
+	// defaultListenersEnabled controls registration of runtime listeners.
+	defaultListenersEnabled bool `default:"true" option:"optional"`
 }
