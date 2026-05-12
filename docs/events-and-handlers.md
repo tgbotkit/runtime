@@ -125,6 +125,8 @@ bot.Handlers().OnCallbackDataPrefix("settings:", func(ctx context.Context, event
 ## Responding
 
 `Bot.Responder()` provides focused helpers for common sends without hiding the generated `tgbotkit/client`.
+These helpers are additive: existing code that sends through `Bot.Client()` remains supported and is still the
+right path for Telegram methods or request fields that are not covered by `respond`.
 
 ```go
 _, err := bot.Responder().SendTextToMessage(ctx, event.Message, "Hello")

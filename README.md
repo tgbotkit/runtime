@@ -100,6 +100,12 @@ func main() {
 }
 ```
 
+## Compatibility
+
+`Bot.Responder()` and handler routing helpers are additive convenience APIs. Existing bots can keep using
+`Bot.Client()` with the generated `github.com/tgbotkit/client` request and response types, and that remains the
+full-coverage path for Telegram methods that are not wrapped by the responder helpers.
+
 ## License
 
 MIT
