@@ -25,7 +25,7 @@ func main() {
 
 	// Register a handler for the /start command.
 	bot.Handlers().OnCommandName("start", func(ctx context.Context, event *events.CommandEvent) error {
-		_, err := bot.Responder().SendTextToMessage(ctx, event.Message, "Hello! I am a bot built with tgbotkit-runtime.")
+		_, err := bot.Responder().SendTextInChat(ctx, event.Message, "Hello! I am a bot built with tgbotkit-runtime.")
 
 		return err
 	})

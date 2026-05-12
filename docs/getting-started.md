@@ -55,7 +55,7 @@ func main() {
 	bot.Handlers().OnMessageMatch(handlers.MessageTextPrefix("echo "), func(ctx context.Context, event *events.MessageEvent) error {
 		log.Printf("Received message: %s", *event.Message.Text)
 
-		_, err := bot.Responder().SendTextToMessage(ctx, event.Message, "You said: "+*event.Message.Text)
+		_, err := bot.Responder().SendTextInChat(ctx, event.Message, "You said: "+*event.Message.Text)
 		return err
 	})
 

@@ -79,7 +79,7 @@ Handles messages accepted by a matcher helper or custom predicate.
 
 ```go
 bot.Handlers().OnMessageMatch(handlers.MessageText("ping"), func(ctx context.Context, event *events.MessageEvent) error {
-    _, err := bot.Responder().SendTextToMessage(ctx, event.Message, "pong")
+    _, err := bot.Responder().SendTextInChat(ctx, event.Message, "pong")
     return err
 })
 ```
@@ -125,11 +125,12 @@ bot.Handlers().OnCallbackDataPrefix("settings:", func(ctx context.Context, event
 ## Responding
 
 `Bot.Responder()` provides focused helpers for common sends without hiding the generated `tgbotkit/client`.
-These helpers are additive: existing code that sends through `Bot.Client()` remains supported and is still the
-right path for Telegram methods or request fields that are not covered by `respond`.
+`SendTextInChat` sends a new message into the same chat context as the source message. Use `ReplyText` when the
+outgoing message should be a Telegram reply to the source message. `Bot.Client()` remains the right path for
+Telegram methods or request fields that are not covered by `respond`.
 
 ```go
-_, err := bot.Responder().SendTextToMessage(ctx, event.Message, "Hello")
+_, err := bot.Responder().SendTextInChat(ctx, event.Message, "Hello")
 _, err = bot.Responder().ReplyText(ctx, event.Message, "Reply")
 err = bot.Responder().AnswerCallbackText(ctx, event.CallbackQuery, "Done")
 ```

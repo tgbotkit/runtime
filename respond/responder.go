@@ -50,8 +50,8 @@ func (r *Responder) SendText(
 	return &resp.JSON200.Result, nil
 }
 
-// SendTextToMessage sends a text message to the same target as source.
-func (r *Responder) SendTextToMessage(
+// SendTextInChat sends a text message to the same chat context as source.
+func (r *Responder) SendTextInChat(
 	ctx context.Context,
 	source *client.Message,
 	text string,

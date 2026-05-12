@@ -67,7 +67,7 @@ func main() {
 
 	// Register a handler for ping text messages only
 	bot.Handlers().OnMessageMatch(handlers.MessageText("ping"), func(ctx context.Context, event *events.MessageEvent) error {
-		_, err := bot.Responder().SendTextToMessage(ctx, event.Message, "pong")
+		_, err := bot.Responder().SendTextInChat(ctx, event.Message, "pong")
 		return err
 	})
 
@@ -102,9 +102,10 @@ func main() {
 
 ## Compatibility
 
-`Bot.Responder()` and handler routing helpers are additive convenience APIs. Existing bots can keep using
-`Bot.Client()` with the generated `github.com/tgbotkit/client` request and response types, and that remains the
-full-coverage path for Telegram methods that are not wrapped by the responder helpers.
+`Bot.Responder()` is a convenience layer over the generated client. `SendTextInChat` sends a new message into the
+same chat, topic, direct-message topic, and business context as the source message; use `ReplyText` when the
+message must be a Telegram reply. `Bot.Client()` remains the full-coverage path for Telegram methods that are not
+wrapped by responder helpers.
 
 ## License
 

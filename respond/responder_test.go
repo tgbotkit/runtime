@@ -94,7 +94,7 @@ func TestResponderSendText(t *testing.T) {
 	}
 }
 
-func TestResponderSendTextToMessageAndReplyText(t *testing.T) {
+func TestResponderSendTextInChatAndReplyText(t *testing.T) {
 	t.Parallel()
 
 	var got []client.SendMessageJSONRequestBody
@@ -117,8 +117,8 @@ func TestResponderSendTextToMessageAndReplyText(t *testing.T) {
 		MessageThreadId:      &threadID,
 	}
 
-	if _, err := responder.SendTextToMessage(context.Background(), source, "same target"); err != nil {
-		t.Fatalf("SendTextToMessage() unexpected error: %v", err)
+	if _, err := responder.SendTextInChat(context.Background(), source, "same chat"); err != nil {
+		t.Fatalf("SendTextInChat() unexpected error: %v", err)
 	}
 	if _, err := responder.ReplyText(context.Background(), source, "reply"); err != nil {
 		t.Fatalf("ReplyText() unexpected error: %v", err)
@@ -129,6 +129,9 @@ func TestResponderSendTextToMessageAndReplyText(t *testing.T) {
 
 	assertSourceTarget(t, got[0], source)
 	assertSourceTarget(t, got[1], source)
+	if got[0].ReplyParameters != nil {
+		t.Fatalf("SendTextInChat ReplyParameters=%#v, want nil", got[0].ReplyParameters)
+	}
 	if got[1].ReplyParameters == nil || got[1].ReplyParameters.MessageId != source.MessageId {
 		t.Fatalf("ReplyParameters=%#v, want message id %d", got[1].ReplyParameters, source.MessageId)
 	}

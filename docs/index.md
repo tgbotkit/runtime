@@ -41,7 +41,7 @@ func main() {
 
 	// Register a handler for ping text messages.
 	bot.Handlers().OnMessageMatch(handlers.MessageText("ping"), func(ctx context.Context, event *events.MessageEvent) error {
-		_, err := bot.Responder().SendTextToMessage(ctx, event.Message, "pong")
+		_, err := bot.Responder().SendTextInChat(ctx, event.Message, "pong")
 		return err
 	})
 
