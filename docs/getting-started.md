@@ -35,10 +35,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime"
 	"github.com/tgbotkit/runtime/events"
-	"github.com/tgbotkit/runtime/messagetype"
+	"github.com/tgbotkit/runtime/handlers"
 )
 
 func main() {
@@ -52,19 +51,12 @@ func main() {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
-	// Register a handler for text messages
-	bot.Handlers().OnMessageType(messagetype.Text, func(ctx context.Context, event *events.MessageEvent) error {
-		if event.Message.Text != nil {
-			log.Printf("Received message: %s", *event.Message.Text)
-			
-			// Echo the message back
-			_, err := bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
-				ChatId: event.Message.Chat.Id,
-				Text:   "You said: " + *event.Message.Text,
-			})
-			return err
-		}
-		return nil
+	// Register a handler for text messages that start with echo.
+	bot.Handlers().OnMessageMatch(handlers.MessageTextPrefix("echo "), func(ctx context.Context, event *events.MessageEvent) error {
+		log.Printf("Received message: %s", *event.Message.Text)
+
+		_, err := bot.Responder().SendTextToMessage(ctx, event.Message, "You said: "+*event.Message.Text)
+		return err
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

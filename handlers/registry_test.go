@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime/eventemitter"
 	"github.com/tgbotkit/runtime/events"
 	"github.com/tgbotkit/runtime/handlers"
@@ -216,6 +217,135 @@ func TestRegistry(t *testing.T) {
 		}
 		if payload != nil {
 			t.Fatalf("payload=%v, want nil after unsubscribe", payload)
+		}
+	})
+
+	t.Run("OnCommandName", func(t *testing.T) {
+		var called bool
+		unsub := reg.OnCommandName("start", func(_ context.Context, event *events.CommandEvent) error {
+			called = true
+			if event.Command != "start" {
+				t.Fatalf("command=%q, want start", event.Command)
+			}
+
+			return nil
+		})
+
+		ee.Emit(context.Background(), events.OnCommand, &events.CommandEvent{Command: "help"})
+		if called {
+			t.Fatal("handler should not be called for non-matching command")
+		}
+
+		ee.Emit(context.Background(), events.OnCommand, &events.CommandEvent{Command: "start"})
+		if !called {
+			t.Fatal("handler was not called for matching command")
+		}
+
+		called = false
+		unsub()
+		ee.Emit(context.Background(), events.OnCommand, &events.CommandEvent{Command: "start"})
+		if called {
+			t.Fatal("handler was called after unsubscribe")
+		}
+	})
+
+	t.Run("OnCommandMatch", func(t *testing.T) {
+		var called bool
+		reg.OnCommandMatch(handlers.CommandAny("help", "about"), func(_ context.Context, _ *events.CommandEvent) error {
+			called = true
+
+			return nil
+		})
+
+		ee.Emit(context.Background(), events.OnCommand, &events.CommandEvent{Command: "start"})
+		if called {
+			t.Fatal("handler should not be called for non-matching command")
+		}
+
+		ee.Emit(context.Background(), events.OnCommand, &events.CommandEvent{Command: "about"})
+		if !called {
+			t.Fatal("handler was not called for matching command")
+		}
+	})
+
+	t.Run("OnCallbackData", func(t *testing.T) {
+		var called bool
+		data := "settings:open"
+		reg.OnCallbackData(data, func(_ context.Context, event *events.CallbackQueryEvent) error {
+			called = true
+			if event.CallbackQuery == nil || event.CallbackQuery.Data == nil || *event.CallbackQuery.Data != data {
+				t.Fatalf("callback data mismatch: %#v", event.CallbackQuery)
+			}
+
+			return nil
+		})
+
+		other := "settings:close"
+		ee.Emit(context.Background(), events.OnCallbackQuery, &events.CallbackQueryEvent{
+			CallbackQuery: &client.CallbackQuery{Data: &other},
+		})
+		if called {
+			t.Fatal("handler should not be called for non-matching data")
+		}
+
+		ee.Emit(context.Background(), events.OnCallbackQuery, &events.CallbackQueryEvent{
+			CallbackQuery: &client.CallbackQuery{Data: &data},
+		})
+		if !called {
+			t.Fatal("handler was not called for matching data")
+		}
+	})
+
+	t.Run("OnCallbackDataPrefix", func(t *testing.T) {
+		var called bool
+		reg.OnCallbackDataPrefix("settings:", func(_ context.Context, _ *events.CallbackQueryEvent) error {
+			called = true
+
+			return nil
+		})
+
+		data := "profile:open"
+		ee.Emit(context.Background(), events.OnCallbackQuery, &events.CallbackQueryEvent{
+			CallbackQuery: &client.CallbackQuery{Data: &data},
+		})
+		if called {
+			t.Fatal("handler should not be called for non-matching prefix")
+		}
+
+		data = "settings:open"
+		ee.Emit(context.Background(), events.OnCallbackQuery, &events.CallbackQueryEvent{
+			CallbackQuery: &client.CallbackQuery{Data: &data},
+		})
+		if !called {
+			t.Fatal("handler was not called for matching prefix")
+		}
+	})
+
+	t.Run("OnMessageMatch", func(t *testing.T) {
+		var called bool
+		text := "ping"
+		reg.OnMessageMatch(handlers.MessageText(text), func(_ context.Context, event *events.MessageEvent) error {
+			called = true
+			if event.Message == nil || event.Message.Text == nil || *event.Message.Text != text {
+				t.Fatalf("message text mismatch: %#v", event.Message)
+			}
+
+			return nil
+		})
+
+		other := "pong"
+		ee.Emit(context.Background(), events.OnMessage, &events.MessageEvent{
+			Message: &client.Message{Text: &other},
+		})
+		if called {
+			t.Fatal("handler should not be called for non-matching text")
+		}
+
+		ee.Emit(context.Background(), events.OnMessage, &events.MessageEvent{
+			Message: &client.Message{Text: &text},
+		})
+		if !called {
+			t.Fatal("handler was not called for matching text")
 		}
 	})
 }

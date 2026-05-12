@@ -115,6 +115,9 @@ func TestNew(t *testing.T) {
 		if bot.Handlers() == nil {
 			t.Fatal("Handlers() is nil")
 		}
+		if bot.Responder() == nil {
+			t.Fatal("Responder() is nil")
+		}
 	})
 
 	t.Run("injected client does not require token", func(t *testing.T) {

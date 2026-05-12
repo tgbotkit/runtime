@@ -74,6 +74,16 @@ bot.Handlers().OnMessageType(messagetype.Photo, func(ctx context.Context, event 
 })
 ```
 
+### `OnMessageMatch`
+Handles messages accepted by a matcher helper or custom predicate.
+
+```go
+bot.Handlers().OnMessageMatch(handlers.MessageText("ping"), func(ctx context.Context, event *events.MessageEvent) error {
+    _, err := bot.Responder().SendTextToMessage(ctx, event.Message, "pong")
+    return err
+})
+```
+
 Message-like events have dedicated registration methods such as `OnEditedMessage`, `OnChannelPost`, `OnBusinessMessage`, and `OnGuestMessage`.
 
 Typed non-message updates have matching methods such as `OnCallbackQuery`, `OnInlineQuery`, `OnPoll`, `OnChatMember`, and `OnMessageReaction`.
@@ -89,6 +99,40 @@ bot.Handlers().OnCommand(func(ctx context.Context, event *events.CommandEvent) e
     return nil
 })
 ```
+
+Use `OnCommandName` when a handler is for one command only:
+
+```go
+bot.Handlers().OnCommandName("help", func(ctx context.Context, event *events.CommandEvent) error {
+    _, err := bot.Responder().ReplyText(ctx, event.Message, "Help text")
+    return err
+})
+```
+
+### `OnCallbackData`
+Handles callback queries by exact data or prefix.
+
+```go
+bot.Handlers().OnCallbackData("settings:open", func(ctx context.Context, event *events.CallbackQueryEvent) error {
+    return bot.Responder().AnswerCallbackText(ctx, event.CallbackQuery, "Opening settings")
+})
+
+bot.Handlers().OnCallbackDataPrefix("settings:", func(ctx context.Context, event *events.CallbackQueryEvent) error {
+    return bot.Responder().AnswerCallback(ctx, event.CallbackQuery)
+})
+```
+
+## Responding
+
+`Bot.Responder()` provides focused helpers for common sends without hiding the generated `tgbotkit/client`.
+
+```go
+_, err := bot.Responder().SendTextToMessage(ctx, event.Message, "Hello")
+_, err = bot.Responder().ReplyText(ctx, event.Message, "Reply")
+err = bot.Responder().AnswerCallbackText(ctx, event.CallbackQuery, "Done")
+```
+
+Use `Bot.Client()` for advanced Telegram API calls that are not covered by the responder helpers.
 
 ## Handler Return Values
 

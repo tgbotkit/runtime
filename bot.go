@@ -14,6 +14,7 @@ import (
 	"github.com/tgbotkit/runtime/listeners"
 	"github.com/tgbotkit/runtime/logger"
 	"github.com/tgbotkit/runtime/middleware"
+	"github.com/tgbotkit/runtime/respond"
 	"github.com/tgbotkit/runtime/updatepoller"
 	"github.com/tgbotkit/runtime/updatepoller/offsetstore"
 	"golang.org/x/sync/errgroup"
@@ -27,8 +28,9 @@ const (
 
 // Bot is the main bot structure.
 type Bot struct {
-	opts     Options
-	registry *handlers.Registry
+	opts      Options
+	registry  *handlers.Registry
+	responder *respond.Responder
 }
 
 var _ botcontext.BotContext = (*Bot)(nil)
@@ -70,8 +72,9 @@ func New(opts Options) (*Bot, error) {
 	}
 
 	bot := &Bot{
-		opts:     opts,
-		registry: handlers.NewRegistry(opts.eventEmitter, opts.logger),
+		opts:      opts,
+		registry:  handlers.NewRegistry(opts.eventEmitter, opts.logger),
+		responder: respond.New(opts.client),
 	}
 
 	registerDefaults(opts, bot, botName)
@@ -121,6 +124,11 @@ func (b *Bot) Logger() logger.Logger {
 // Handlers returns the bot's handler registry.
 func (b *Bot) Handlers() *handlers.Registry {
 	return b.registry
+}
+
+// Responder returns helper methods for common Telegram responses.
+func (b *Bot) Responder() *respond.Responder {
+	return b.responder
 }
 
 func (b *Bot) initDefaultPoller() error {

@@ -39,10 +39,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime"
 	"github.com/tgbotkit/runtime/events"
-	"github.com/tgbotkit/runtime/messagetype"
+	"github.com/tgbotkit/runtime/handlers"
 	"github.com/tgbotkit/runtime/webhook"
 )
 
@@ -66,15 +65,10 @@ func main() {
 		log.Fatalf("failed to create bot: %v", err)
 	}
 
-	// Register a handler for text message events only
-	bot.Handlers().OnMessageType(messagetype.Text, func(ctx context.Context, event *events.MessageEvent) error {
-		if event.Message.Text != nil && *event.Message.Text == "ping" {
-			_, _ = bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
-				ChatId: event.Message.Chat.Id,
-				Text:   "pong",
-			})
-		}
-		return nil
+	// Register a handler for ping text messages only
+	bot.Handlers().OnMessageMatch(handlers.MessageText("ping"), func(ctx context.Context, event *events.MessageEvent) error {
+		_, err := bot.Responder().SendTextToMessage(ctx, event.Message, "pong")
+		return err
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

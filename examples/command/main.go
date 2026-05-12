@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/tgbotkit/client"
 	"github.com/tgbotkit/runtime"
 	"github.com/tgbotkit/runtime/events"
 )
@@ -24,16 +23,11 @@ func main() {
 		log.Fatalf("create bot: %v", err)
 	}
 
-	// Register a handler for the /start command
-	bot.Handlers().OnCommand(func(ctx context.Context, event *events.CommandEvent) error {
-		if event.Command == "start" {
-			_, _ = bot.Client().SendMessageWithResponse(ctx, client.SendMessageJSONRequestBody{
-				ChatId: event.Message.Chat.Id,
-				Text:   "Hello! I am a bot built with tgbotkit-runtime.",
-			})
-		}
+	// Register a handler for the /start command.
+	bot.Handlers().OnCommandName("start", func(ctx context.Context, event *events.CommandEvent) error {
+		_, err := bot.Responder().SendTextToMessage(ctx, event.Message, "Hello! I am a bot built with tgbotkit-runtime.")
 
-		return nil
+		return err
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

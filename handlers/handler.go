@@ -16,11 +16,20 @@ type MessageHandler func(ctx context.Context, event *events.MessageEvent) error
 // CommandHandler is a function that handles a command event.
 type CommandHandler func(ctx context.Context, event *events.CommandEvent) error
 
+// CommandMatcher reports whether a command handler should run for an event.
+type CommandMatcher func(event *events.CommandEvent) bool
+
 // CallbackQueryHandler is a function that handles a callback query event.
 type CallbackQueryHandler func(ctx context.Context, event *events.CallbackQueryEvent) error
 
+// CallbackQueryMatcher reports whether a callback query handler should run for an event.
+type CallbackQueryMatcher func(event *events.CallbackQueryEvent) bool
+
 // InlineQueryHandler is a function that handles an inline query event.
 type InlineQueryHandler func(ctx context.Context, event *events.InlineQueryEvent) error
+
+// MessageMatcher reports whether a message handler should run for an event.
+type MessageMatcher func(event *events.MessageEvent) bool
 
 // ChosenInlineResultHandler is a function that handles a chosen inline result event.
 type ChosenInlineResultHandler func(ctx context.Context, event *events.ChosenInlineResultEvent) error

@@ -45,8 +45,15 @@ func (r *Registry) OnMessage(handler MessageHandler) eventemitter.UnsubscribeFun
 func (r *Registry) OnMessageType(t messagetype.MessageType, handler MessageHandler) eventemitter.UnsubscribeFunc {
 	r.l.Debugf("adding OnMessageType handler: %T for type %s", handler, t)
 
+	return r.OnMessageMatch(MessageType(t), handler)
+}
+
+// OnMessageMatch registers a handler for messages matching the given predicate.
+func (r *Registry) OnMessageMatch(match MessageMatcher, handler MessageHandler) eventemitter.UnsubscribeFunc {
+	r.l.Debugf("adding OnMessageMatch handler: %T", handler)
+
 	return eventemitter.On(r.em, events.OnMessage, func(ctx context.Context, event *events.MessageEvent) error {
-		if event.Type != t {
+		if match == nil || !match(event) {
 			return nil
 		}
 
@@ -93,9 +100,57 @@ func (r *Registry) OnCommand(handler CommandHandler) eventemitter.UnsubscribeFun
 	})
 }
 
+// OnCommandName registers a handler for a specific command name.
+func (r *Registry) OnCommandName(name string, handler CommandHandler) eventemitter.UnsubscribeFunc {
+	return r.OnCommandMatch(CommandName(name), handler)
+}
+
+// OnCommandMatch registers a handler for commands matching the given predicate.
+func (r *Registry) OnCommandMatch(match CommandMatcher, handler CommandHandler) eventemitter.UnsubscribeFunc {
+	r.l.Debugf("adding OnCommandMatch handler: %T", handler)
+
+	return eventemitter.On(r.em, events.OnCommand, func(ctx context.Context, event *events.CommandEvent) error {
+		if match == nil || !match(event) {
+			return nil
+		}
+
+		return handler(ctx, event)
+	})
+}
+
 // OnCallbackQuery registers a handler for callback query events.
 func (r *Registry) OnCallbackQuery(handler CallbackQueryHandler) eventemitter.UnsubscribeFunc {
 	return onEvent(r, events.OnCallbackQuery, "OnCallbackQuery", handler)
+}
+
+// OnCallbackData registers a handler for callback queries with exact data.
+func (r *Registry) OnCallbackData(data string, handler CallbackQueryHandler) eventemitter.UnsubscribeFunc {
+	return r.OnCallbackQueryMatch(CallbackData(data), handler)
+}
+
+// OnCallbackDataPrefix registers a handler for callback queries with data prefix.
+func (r *Registry) OnCallbackDataPrefix(prefix string, handler CallbackQueryHandler) eventemitter.UnsubscribeFunc {
+	return r.OnCallbackQueryMatch(CallbackDataPrefix(prefix), handler)
+}
+
+// OnCallbackQueryMatch registers a handler for callback queries matching the given predicate.
+func (r *Registry) OnCallbackQueryMatch(
+	match CallbackQueryMatcher,
+	handler CallbackQueryHandler,
+) eventemitter.UnsubscribeFunc {
+	r.l.Debugf("adding OnCallbackQueryMatch handler: %T", handler)
+
+	return eventemitter.On(
+		r.em,
+		events.OnCallbackQuery,
+		func(ctx context.Context, event *events.CallbackQueryEvent) error {
+			if match == nil || !match(event) {
+				return nil
+			}
+
+			return handler(ctx, event)
+		},
+	)
 }
 
 // OnInlineQuery registers a handler for inline query events.
