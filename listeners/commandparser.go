@@ -43,6 +43,9 @@ func parseCommand(
 		if entity.Type != "bot_command" {
 			continue
 		}
+		if entity.Offset != 0 {
+			continue
+		}
 
 		commandText := sliceText(text, entity.Offset, entity.Length)
 

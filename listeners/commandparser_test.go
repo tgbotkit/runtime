@@ -100,7 +100,7 @@ func TestCommandParser(t *testing.T) {
 		}
 	})
 
-	t.Run("parses command after astral emoji", func(t *testing.T) {
+	t.Run("ignores command after astral emoji", func(t *testing.T) {
 		ee, err := eventemitter.NewSync(eventemitter.NewOptions())
 		if err != nil {
 			t.Fatalf("NewSync() unexpected error: %v", err)
@@ -128,17 +128,11 @@ func TestCommandParser(t *testing.T) {
 		event := &events.MessageEvent{Message: msg, Type: messagetype.Text}
 
 		err = parser.Handle(context.Background(), event)
-		if !errors.Is(err, eventemitter.ErrBreak) {
-			t.Fatalf("Handle() error=%v, want %v", err, eventemitter.ErrBreak)
+		if err != nil {
+			t.Fatalf("Handle() error=%v, want nil", err)
 		}
-		if receivedEvent == nil {
-			t.Fatal("receivedEvent is nil")
-		}
-		if receivedEvent.Command != "echo" {
-			t.Fatalf("command=%q, want %q", receivedEvent.Command, "echo")
-		}
-		if receivedEvent.Args != "🚀 ok" {
-			t.Fatalf("args=%q, want %q", receivedEvent.Args, "🚀 ok")
+		if receivedEvent != nil {
+			t.Fatalf("receivedEvent = %#v, want nil", receivedEvent)
 		}
 	})
 
@@ -226,7 +220,8 @@ func TestCommandParser(t *testing.T) {
 		}
 	})
 
-	t.Run("parses command from caption", func(t *testing.T) {
+
+	t.Run("ignores command from caption when not at start", func(t *testing.T) {
 		ee, err := eventemitter.NewSync(eventemitter.NewOptions())
 		if err != nil {
 			t.Fatalf("NewSync() unexpected error: %v", err)
@@ -248,6 +243,40 @@ func TestCommandParser(t *testing.T) {
 			MessageId:       31,
 			Caption:         &caption,
 			CaptionEntities: &[]client.MessageEntity{{Type: "bot_command", Offset: 3, Length: 14}},
+		}
+		event := &events.MessageEvent{Message: msg, Type: messagetype.Photo}
+
+		err = parser.Handle(context.Background(), event)
+		if err != nil {
+			t.Fatalf("Handle() error=%v, want nil", err)
+		}
+		if receivedEvent != nil {
+			t.Fatalf("receivedEvent = %#v, want nil", receivedEvent)
+		}
+	})
+
+	t.Run("parses command from caption", func(t *testing.T) {
+		ee, err := eventemitter.NewSync(eventemitter.NewOptions())
+		if err != nil {
+			t.Fatalf("NewSync() unexpected error: %v", err)
+		}
+		parser := listeners.CommandParser(ee, botName)
+
+		var receivedEvent *events.CommandEvent
+		ee.AddListener(events.OnCommand, eventemitter.ListenerFunc(func(_ context.Context, payload any) error {
+			e, ok := payload.(*events.CommandEvent)
+			if !ok {
+				t.Fatalf("payload type=%T, want *events.CommandEvent", payload)
+			}
+			receivedEvent = e
+			return nil
+		}))
+
+		caption := "/caption@MYBOT 🚀 ok"
+		msg := &client.Message{
+			MessageId:       31,
+			Caption:         &caption,
+			CaptionEntities: &[]client.MessageEntity{{Type: "bot_command", Offset: 0, Length: 14}},
 		}
 		event := &events.MessageEvent{Message: msg, Type: messagetype.Photo}
 
