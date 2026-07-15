@@ -132,7 +132,7 @@ func TestResponderSendTextInChatAndReplyText(t *testing.T) {
 	if got[0].ReplyParameters != nil {
 		t.Fatalf("SendTextInChat ReplyParameters=%#v, want nil", got[0].ReplyParameters)
 	}
-	if got[1].ReplyParameters == nil || got[1].ReplyParameters.MessageId != source.MessageId {
+	if got[1].ReplyParameters == nil || got[1].ReplyParameters.MessageId == nil || *got[1].ReplyParameters.MessageId != source.MessageId {
 		t.Fatalf("ReplyParameters=%#v, want message id %d", got[1].ReplyParameters, source.MessageId)
 	}
 }
