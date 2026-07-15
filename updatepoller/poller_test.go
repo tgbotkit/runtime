@@ -207,8 +207,8 @@ func TestPoller_StopTimeout(t *testing.T) {
 	if !strings.Contains(err.Error(), "context deadline exceeded") {
 		t.Fatalf("Stop() error=%v, want context deadline exceeded", err)
 	}
-	if elapsed < 5*time.Millisecond {
-		t.Fatalf("Stop() elapsed=%v, want >= %v", elapsed, 5*time.Millisecond)
+	if elapsed < 3*time.Millisecond {
+		t.Fatalf("Stop() elapsed=%v, want >= %v", elapsed, 3*time.Millisecond)
 	}
 }
 

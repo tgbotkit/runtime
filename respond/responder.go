@@ -79,8 +79,9 @@ func (r *Responder) ReplyText(
 
 	opts = append([]SendTextOption{
 		WithSendMessagePatch(func(body *client.SendMessageJSONRequestBody) {
+			messageID := source.MessageId
 			body.ReplyParameters = &client.ReplyParameters{
-				MessageId: source.MessageId,
+				MessageId: &messageID,
 			}
 		}),
 	}, opts...)
