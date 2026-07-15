@@ -75,3 +75,6 @@ type PurchasedPaidMediaHandler func(ctx context.Context, event *events.Purchased
 
 // ManagedBotHandler is a function that handles a managed bot event.
 type ManagedBotHandler func(ctx context.Context, event *events.ManagedBotEvent) error
+
+// SubscriptionHandler is a function that handles a bot subscription update event.
+type SubscriptionHandler func(ctx context.Context, event *events.SubscriptionEvent) error

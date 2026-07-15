@@ -220,6 +220,37 @@ func TestRegistry(t *testing.T) {
 		}
 	})
 
+	t.Run("OnSubscription", func(t *testing.T) {
+		var called bool
+		var payload *events.SubscriptionEvent
+		unsub := reg.OnSubscription(func(_ context.Context, event *events.SubscriptionEvent) error {
+			called = true
+			payload = event
+
+			return nil
+		})
+
+		expectedPayload := &events.SubscriptionEvent{}
+		ee.Emit(context.Background(), events.OnSubscription, expectedPayload)
+		if !called {
+			t.Fatal("handler was not called")
+		}
+		if payload != expectedPayload {
+			t.Fatalf("payload mismatch: got %p, want %p", payload, expectedPayload)
+		}
+
+		called = false
+		payload = nil
+		unsub()
+		ee.Emit(context.Background(), events.OnSubscription, expectedPayload)
+		if called {
+			t.Fatal("handler was called after unsubscribe")
+		}
+		if payload != nil {
+			t.Fatalf("payload=%v, want nil after unsubscribe", payload)
+		}
+	})
+
 	t.Run("OnCommandName", func(t *testing.T) {
 		var called bool
 		unsub := reg.OnCommandName("start", func(_ context.Context, event *events.CommandEvent) error {

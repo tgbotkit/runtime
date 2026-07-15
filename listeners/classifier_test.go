@@ -237,6 +237,17 @@ func TestClassifier(t *testing.T) {
 					}
 				},
 			},
+			{
+				name:   "Subscription",
+				update: &client.Update{Subscription: &client.BotSubscriptionUpdated{}},
+				event:  events.OnSubscription,
+				assertType: func(t *testing.T, payload any) {
+					t.Helper()
+					if _, ok := payload.(*events.SubscriptionEvent); !ok {
+						t.Fatalf("payload type=%T, want *events.SubscriptionEvent", payload)
+					}
+				},
+			},
 		}
 
 		for _, tt := range tests {

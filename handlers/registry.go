@@ -238,6 +238,11 @@ func (r *Registry) OnManagedBot(handler ManagedBotHandler) eventemitter.Unsubscr
 	return onEvent(r, events.OnManagedBot, "OnManagedBot", handler)
 }
 
+// OnSubscription registers a handler for bot subscription update events.
+func (r *Registry) OnSubscription(handler SubscriptionHandler) eventemitter.UnsubscribeFunc {
+	return onEvent(r, events.OnSubscription, "OnSubscription", handler)
+}
+
 func (r *Registry) onMessageEvent(
 	event string,
 	name string,

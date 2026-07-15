@@ -58,4 +58,6 @@ const (
 	OnPurchasedPaidMedia = "onPurchasedPaidMedia"
 	// OnManagedBot is emitted when a managed bot update is received.
 	OnManagedBot = "onManagedBot"
+	// OnSubscription is emitted when a bot subscription update is received.
+	OnSubscription = "onSubscription"
 )
