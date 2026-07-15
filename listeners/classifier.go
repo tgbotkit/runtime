@@ -66,11 +66,19 @@ func classifyMessages(ctx context.Context, emitter eventemitter.EventEmitter, up
 
 func classifyQueries(ctx context.Context, emitter eventemitter.EventEmitter, update *client.Update) {
 	if update.CallbackQuery != nil {
-		emitter.Emit(ctx, events.OnCallbackQuery, &events.CallbackQueryEvent{CallbackQuery: update.CallbackQuery})
+		emitter.Emit(
+			ctx,
+			events.OnCallbackQuery,
+			&events.CallbackQueryEvent{CallbackQuery: update.CallbackQuery},
+		)
 	}
 
 	if update.InlineQuery != nil {
-		emitter.Emit(ctx, events.OnInlineQuery, &events.InlineQueryEvent{InlineQuery: update.InlineQuery})
+		emitter.Emit(
+			ctx,
+			events.OnInlineQuery,
+			&events.InlineQueryEvent{InlineQuery: update.InlineQuery},
+		)
 	}
 
 	if update.ChosenInlineResult != nil {
@@ -80,7 +88,11 @@ func classifyQueries(ctx context.Context, emitter eventemitter.EventEmitter, upd
 	}
 
 	if update.ShippingQuery != nil {
-		emitter.Emit(ctx, events.OnShippingQuery, &events.ShippingQueryEvent{ShippingQuery: update.ShippingQuery})
+		emitter.Emit(
+			ctx,
+			events.OnShippingQuery,
+			&events.ShippingQueryEvent{ShippingQuery: update.ShippingQuery},
+		)
 	}
 
 	if update.PreCheckoutQuery != nil {
@@ -137,26 +149,42 @@ func classifyChatUpdates(ctx context.Context, emitter eventemitter.EventEmitter,
 }
 
 func classifyBusinessUpdates(ctx context.Context, emitter eventemitter.EventEmitter, update *client.Update) {
-	if update.BusinessConnection != nil {
-		emitter.Emit(ctx, events.OnBusinessConnection, &events.BusinessConnectionEvent{
-			BusinessConnection: update.BusinessConnection,
-		})
-	}
-
-	if update.DeletedBusinessMessages != nil {
-		emitter.Emit(ctx, events.OnDeletedBusinessMessages, &events.DeletedBusinessMessagesEvent{
-			DeletedBusinessMessages: update.DeletedBusinessMessages,
-		})
-	}
-
-	if update.PurchasedPaidMedia != nil {
-		emitter.Emit(ctx, events.OnPurchasedPaidMedia, &events.PurchasedPaidMediaEvent{
-			PurchasedPaidMedia: update.PurchasedPaidMedia,
-		})
-	}
-
-	if update.ManagedBot != nil {
-		emitter.Emit(ctx, events.OnManagedBot, &events.ManagedBotEvent{ManagedBot: update.ManagedBot})
+	for _, candidate := range []struct {
+		event   string
+		payload any
+	}{
+		{
+			event: events.OnBusinessConnection,
+			payload: &events.BusinessConnectionEvent{
+				BusinessConnection: update.BusinessConnection,
+			},
+		},
+		{
+			event: events.OnDeletedBusinessMessages,
+			payload: &events.DeletedBusinessMessagesEvent{
+				DeletedBusinessMessages: update.DeletedBusinessMessages,
+			},
+		},
+		{
+			event: events.OnPurchasedPaidMedia,
+			payload: &events.PurchasedPaidMediaEvent{
+				PurchasedPaidMedia: update.PurchasedPaidMedia,
+			},
+		},
+		{
+			event:   events.OnManagedBot,
+			payload: &events.ManagedBotEvent{ManagedBot: update.ManagedBot},
+		},
+		{
+			event: events.OnSubscription,
+			payload: &events.SubscriptionEvent{
+				Subscription: update.Subscription,
+			},
+		},
+	} {
+		if !isNilPayload(candidate.payload) {
+			emitter.Emit(ctx, candidate.event, candidate.payload)
+		}
 	}
 }
 
@@ -165,4 +193,21 @@ func emitMessage(ctx context.Context, emitter eventemitter.EventEmitter, event s
 		Message: message,
 		Type:    messagetype.Detect(message),
 	})
+}
+
+func isNilPayload(payload any) bool {
+	switch v := payload.(type) {
+	case *events.BusinessConnectionEvent:
+		return v.BusinessConnection == nil
+	case *events.DeletedBusinessMessagesEvent:
+		return v.DeletedBusinessMessages == nil
+	case *events.PurchasedPaidMediaEvent:
+		return v.PurchasedPaidMedia == nil
+	case *events.ManagedBotEvent:
+		return v.ManagedBot == nil
+	case *events.SubscriptionEvent:
+		return v.Subscription == nil
+	default:
+		return payload == nil
+	}
 }

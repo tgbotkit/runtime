@@ -113,3 +113,8 @@ type PurchasedPaidMediaEvent struct {
 type ManagedBotEvent struct {
 	ManagedBot *client.ManagedBotUpdated
 }
+
+// SubscriptionEvent is emitted when a bot subscription update is received.
+type SubscriptionEvent struct {
+	Subscription *client.BotSubscriptionUpdated
+}
